@@ -151,11 +151,13 @@ def process_timestep(args,filename = None):
         print(f"Error processing timestep {ts}: {e}")
         return ts, None
 
-def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='viridis', fig_destiny='figure_3d_scatter', angs=(30,30)):
+def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='viridis', fig_destiny='figure_3d_scatter', angs=(30,30), mask_name=''):
     R = np.array(data['R'])
     Z = np.array(data['Z'])
     phi = np.array(data['phi'])
     val = np.array(data['val'])
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array(val)
     
     sc = ax.scatter(
         R, phi, Z,
@@ -164,7 +166,7 @@ def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='
         s=1,          # Point size
         alpha=0.5
     )
-    cbar = fig.colorbar(sc, pad=0.1)
+    cbar = fig.colorbar(sm, pad=0.1)
     cbar.set_label('Value Intensity', rotation=270, labelpad=15)
     ax.set_xlabel('R Axis', fontsize=10)
     ax.set_ylabel('phi Axis', fontsize=10)
@@ -174,10 +176,13 @@ def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='
     if DEBUG or test_flag:
         plt.show()
     else:
-        plt.savefig(os.path.join(fig_destiny, f'3d_plot_{time_phys}ms_{names[-1]}_overall.png'), dpi=300)
+        if mask_name != '':
+            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{time_phys}ms_{names[-1]}_scatter_{mask_name}.png'), dpi=300)
+        else:
+            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{time_phys}ms_{names[-1]}_scatter_overall.png'), dpi=300)
     plt.close(fig)
 
-def plot_surface_from_scatter_dict(fig, ax, data, norm, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30)):
+def plot_surface_from_scatter_dict(fig, ax, data, norm, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30), mask_name=''):
 
     # 保持二维形状：在 mask 为 False 的位置填充 NaN（plot_surface 会忽略 NaN 区域）
     R_set_new = np.where(mask, data['R'], np.nan)
@@ -207,9 +212,10 @@ def plot_surface_from_scatter_dict(fig, ax, data, norm, names, time_phys, mask, 
     if DEBUG or test_flag:
         plt.show()
     else:
-        #print(time_phys,names[-1],
-              #type(time_phys),type(names[-1]))
-        plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_overall.png'), dpi=120)
+        if mask_name != '':
+            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_{mask_name}.png'), dpi=120)
+        else:
+            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_overall.png'), dpi=120)
         #plt.show()
     plt.close(fig)
     
@@ -223,9 +229,8 @@ def parse_arguments():
     parser.add_argument("--name", required=True, help="Name of the data column to process.", default='heatF_tot_cd')
     parser.add_argument("-lim","--limit", nargs='+', type=float, default=[1e5], help="Data limits for plotting.")
     parser.add_argument("-nf", "--norm_factor", type=float, default=4.1006E-07, help="Normalization factor for data.")
-    parser.add_argument("-s", "--plot_surface", action="store_true", default=True, help="Enable surface plotting from scatter data.")
-    parser.add_argument("-st", "--strike_points", default=True, action="store_true", help="Enable strike points plotting.")
-    parser.add_argument("--overall", action="store_true",default=False, help="Enable overall plotting.")
+    parser.add_argument("-s", "--plot_surface", action="store_true", default=False, help="Enable surface plotting from scatter data.")
+    parser.add_argument("-o", "--overall", action="store_true",default=False, help="Enable overall plotting.")
     parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode.")
     parser.add_argument("--test_flag", action="store_true", default=False, help="Enable test flag.")
     return parser.parse_args()
@@ -245,8 +250,8 @@ def mask_choose(R_set_org,Z_set_org,mask):
         angs = {
             'mask_UO': (36, 27),
             'mask_LO': (-36, -27),
-            'mask_UI': (30, 150),
-            'mask_LI': (-12, -158),
+            'mask_UI': (23, 163),
+            'mask_LI': (-23, -163),
         }
     elif mask == 'ITER':
         masks = {
@@ -273,22 +278,12 @@ def main():
     if args.test_flag:
         global test_flag
         test_flag = True
-    if args.strike_points and args.overall:
-        raise ValueError("Flags --strike_points and --overall cannot be enabled simultaneously.")
-    if args.overall == True:
-        args.strike_points = False
-    if args.strike_points == False:
-        args.overall = True
     
     file_addr = os.path.dirname(args.file)
-    if args.plot_surface and args.strike_points:
-        fig_destiny = os.path.join(os.getcwd(), f"figure_3d_surface_leg_{args.time}")
-    elif args.overall and args.plot_surface:
-        fig_destiny = os.path.join(os.getcwd(), f"figure_3d_surface_overall_{args.time}")
-    elif args.overall and not args.plot_surface:
-        fig_destiny = os.path.join(os.getcwd(), f"figure_3d_scatter_overall_{args.time}")
-    elif args.strike_points and not args.plot_surface:
-        fig_destiny = os.path.join(os.getcwd(), f"figure_3d_scatter_leg_{args.time}")
+    if args.plot_surface:
+        fig_destiny = os.path.join(os.getcwd(), f"figure_3d_surface_{args.time}")
+    else:
+        fig_destiny = os.path.join(os.getcwd(), f"figure_3d_scatter_{args.time}")
     
     ensure_directory_exists(fig_destiny)
 
@@ -307,7 +302,7 @@ def main():
         if args.debug:
             print(f"Processed time {t_now[ts]:.2e} with shape {q_data['R'].shape}, {q_data['Z'].shape}, {q_data['phi'].shape}, t_phys={t_phys:.2e}")
 
-    if args.overall:
+    if args.overall: # plot overall
         for key in data_set.keys():
             time_phys = round(key * norm_factor * 1e3, 4)  # ms
             R_set_org = data_set[key]['R']
@@ -322,7 +317,7 @@ def main():
 
             data_org = np.where(data_org <= lim[1], data_org, lim[1])
 
-            mask_overall = (R_set_org > 0)
+            mask_overall = (data_org > 0)
             R_set = R_set_org[mask_overall]
             Z_set = Z_set_org[mask_overall]
             phi_set = phi_set_org[mask_overall]
@@ -331,13 +326,20 @@ def main():
             fig = plt.figure(figsize=(8, 6))
             ax = fig.add_subplot(111, projection='3d')
             cmap = plt.get_cmap('viridis')
-            norm = plt.Normalize(1e5, lim[1])
+            norm = LogNorm(1e5, lim[1])
             if args.plot_surface:
-                plot_surface_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap=cmap, norm=norm, names=names, time_phys=time_phys, mask=mask_overall, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30))
+                R_grid = np.reshape(R_set_org, (iplane, -1), order='C')
+                Z_grid = np.reshape(Z_set_org, (iplane, -1), order='C')
+                phi_grid = np.reshape(phi_set_org, (iplane, -1), order='C')
+                data_grid = np.reshape(data_org, (iplane, -1), order='C')
+                # 将 mask 重塑为二维，与网格对齐
+                mask_grid = np.reshape(mask_overall, (iplane, -1), order='C')
+
+                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, cmap=cmap, norm=norm, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30))
             else:
                 plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap=cmap, norm=norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30))
 
-    if args.strike_points:
+    else: # plot leg strike points
         for key in data_set.keys():
             time_phys = round(key * norm_factor * 1e3, 4) # ms
 
@@ -361,7 +363,7 @@ def main():
                 fig = plt.figure(figsize=(8, 6))
                 ax = fig.add_subplot(111, projection='3d')
                 cmap = plt.get_cmap('viridis')
-                norm = plt.Normalize(1e5, lim[1])
+                norm = LogNorm(1e5, lim[1])
                     
                 if args.plot_surface:
                     R_grid = np.reshape(R_set_org, (iplane, -1), order='C')
@@ -372,9 +374,9 @@ def main():
                     mask_grid = np.reshape(mask, (iplane, -1), order='C')
                     
                     ang = angs[mask_name]
-                    
-                    plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, cmap='viridis', norm=norm, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=angs[mask_name])
-                    
+
+                    plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, cmap='viridis', norm=norm, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=angs[mask_name], mask_name=mask_name)
+
                 else:
                     ang = angs[mask_name]
                     R_set = R_set_org[mask]
@@ -382,7 +384,7 @@ def main():
                     phi_set = phi_set_org[mask]
                     data = data_org[mask]
 
-                    plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap='viridis', norm=norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=ang)
+                    plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap='viridis', norm=norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=ang, mask_name=mask_name)
 
 
 if __name__ == '__main__':

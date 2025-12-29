@@ -163,7 +163,7 @@ def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='
         R, phi, Z,
         c=val, 
         cmap=cmap,
-        s=1,          # Point size
+        s=2,          # Point size
         alpha=0.5
     )
     cbar = fig.colorbar(sm, pad=0.1)
@@ -171,6 +171,7 @@ def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='
     ax.set_xlabel('R Axis', fontsize=10)
     ax.set_ylabel('phi Axis', fontsize=10)
     ax.set_zlabel('Z Axis', fontsize=10)
+    ax.set_aspect('equalxz')
     #ax.set_title(f'{names[-1]} at t={time_phys}ms')
     ax.view_init(*angs)  # 解包元组，确保传入两个数值
     if DEBUG or test_flag:
@@ -200,13 +201,14 @@ def plot_surface_from_scatter_dict(fig, ax, data, norm, names, time_phys, mask, 
         ccount=1080,
         cmap=cmap,
         alpha=1,
-        lw=0.,
+        lw=0
     )
     cbar = plt.colorbar(sm, pad=0.1)
     cbar.set_label('Value Intensity', rotation=270, labelpad=15)
     ax.set_xlabel('R Axis', fontsize=10)
     ax.set_ylabel('phi Axis', fontsize=10)
     ax.set_zlabel('Z Axis', fontsize=10)
+    ax.set_aspect('equalxz')
     #ax.set_title(f'{names[-1]} at t={time_phys}ms')
     ax.view_init(*angs)  # 解包元组，确保传入两个数值
     if DEBUG or test_flag:
@@ -229,10 +231,11 @@ def parse_arguments():
     parser.add_argument("--name", required=True, help="Name of the data column to process.", default='heatF_tot_cd')
     parser.add_argument("-lim","--limit", nargs='+', type=float, default=[1e5], help="Data limits for plotting.")
     parser.add_argument("-nf", "--norm_factor", type=float, default=4.1006E-07, help="Normalization factor for data.")
-    parser.add_argument("-s", "--plot_surface", action="store_true", default=False, help="Enable surface plotting from scatter data.")
+    parser.add_argument("-sf", "--plot_surface", action="store_true", default=False, help="Enable surface plotting from scatter data.")
     parser.add_argument("-o", "--overall", action="store_true",default=False, help="Enable overall plotting.")
-    parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode.")
-    parser.add_argument("--test_flag", action="store_true", default=False, help="Enable test flag.")
+    parser.add_argument("-debug", action="store_true", default=False, help="Enable debug mode.")
+    parser.add_argument("-test", "--test_flag", action="store_true", default=False, help="Enable test flag.")
+    parser.add_argument("-log", "--log_norm", action="store_true", default=False, help="Enable logarithmic normalization for color mapping.")
     return parser.parse_args()
 
 def ensure_directory_exists(directory):
@@ -280,6 +283,7 @@ def main():
         test_flag = True
     
     file_addr = os.path.dirname(args.file)
+    
     if args.plot_surface:
         fig_destiny = os.path.join(os.getcwd(), f"figure_3d_surface_{args.time}")
     else:
@@ -326,7 +330,10 @@ def main():
             fig = plt.figure(figsize=(8, 6))
             ax = fig.add_subplot(111, projection='3d')
             cmap = plt.get_cmap('viridis')
-            norm = LogNorm(1e5, lim[1])
+            if args.log_norm:
+                norm = LogNorm(1e5, lim[1])
+            else:
+                norm = plt.Normalize(lim[0], lim[1])
             if args.plot_surface:
                 R_grid = np.reshape(R_set_org, (iplane, -1), order='C')
                 Z_grid = np.reshape(Z_set_org, (iplane, -1), order='C')

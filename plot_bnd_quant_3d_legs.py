@@ -11,8 +11,7 @@ import argparse
 import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
-DEBUG = False
-test_flag = False
+
 
 def read_boundary_file(file_path, DEBUG=0):
     """优化后的文件读取函数，使用numpy直接加载数据"""
@@ -240,18 +239,6 @@ def reshape_to_grid_updated(block, col_names, names, iplane=None,xpoints=None):
     print('Sorted and Reshaped Successfully.')
     return sorted_df
 
-def find_max(df,names,time):
-
-    
-    max_val = np.max(data)
-    if max_val == 0:
-        print(f"Warning: Maximum value is zero at time {time}.")
-        return None, None, max_val
-    rows, cols = np.where(data == max_val)
-    
-    
-    return rows,cols,max_val
-
 def process_timestep(args,filename = None):
     """处理单个时间步的任务函数"""
     ts, file_addr, iplane, names, xpoints = args
@@ -276,11 +263,13 @@ def process_timestep(args,filename = None):
         print(f"Error processing timestep {ts}: {e}")
         return ts, None
 
-def plot_scatter_from_scatter_dict(fig, ax, data, log, names, time_phys, cmap='viridis', fig_destiny='figure_3d_scatter', angs=(30,30), mask_name=''):
+
+def plot_scatter_from_scatter_dict(fig, ax, data, log, names, time_phys, cmap='viridis', fig_destiny='figure_3d_scatter', angs=(30,30), mask_name='',find_max=False,DEBUG=False,test_flag=False):
     R = np.array(data['R'])
     Z = np.array(data['Z'])
     phi = np.array(data['phi'])
     val = np.array(data['val'])
+   
     if log:
         norm = LogNorm(val.min(), val.max())
     else:
@@ -295,6 +284,15 @@ def plot_scatter_from_scatter_dict(fig, ax, data, log, names, time_phys, cmap='v
         s=2,          # Point size
         alpha=0.5
     )
+    
+    if find_max:
+        max_idx = np.argmax(val)
+        max_R = R[max_idx]
+        max_Z = Z[max_idx]
+        max_phi = phi[max_idx]
+        max_value = val[max_idx]
+        ax.scatter([max_R], [max_phi], [max_Z], color='red', s=40, label=f'Max: {max_value:.2e}')
+
     cbar = fig.colorbar(sm, pad=0.1)
     cbar.set_label('Value Intensity', rotation=270, labelpad=15)
     ax.set_xlabel('R Axis', fontsize=10)
@@ -312,7 +310,7 @@ def plot_scatter_from_scatter_dict(fig, ax, data, log, names, time_phys, cmap='v
             plt.savefig(os.path.join(fig_destiny, f'3d_plot_{time_phys}ms_{names[-1]}_scatter_overall.png'), dpi=300)
     plt.close(fig)
 
-def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30), mask_name=''):
+def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30), mask_name='',find_max=False,DEBUG=False,test_flag=False):
 
     # 保持二维形状：在 mask 为 False 的位置填充 NaN（plot_surface 会忽略 NaN 区域）
     R_set_new = np.where(mask, data['R'], np.nan)
@@ -331,16 +329,26 @@ def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, i
         norm = plt.Normalize(valid_data.min(), valid_data.max())
     sm = cm.ScalarMappable(norm=norm, cmap=cmap)
     sm.set_array(valid_data)
-    
+    kwargs = {'rcount': len(phi_set_new[:,0]), 'ccount': len(R_set_new[0,:]), 'lw': 0, 'edgecolor': 'none', 'antialiased': False, 'shade': False}
+    if DEBUG or test_flag:
+        kwargs['rcount'] = 100
+        kwargs['ccount'] = 100
+        kwargs['antialiased'] = True
     sc = ax.plot_surface(
         R_set_new, phi_set_new, Z_set_new,
         facecolors=cm.viridis(norm(data_new)),
-        rcount=1080,
-        ccount=1080,
         cmap=cmap,
         alpha=1,
-        lw=0
+        **kwargs
     )
+    if find_max:
+        max_idx = np.nanargmax(data_new)
+        max_R = R_set_new.flatten()[max_idx]*1.01
+        max_Z = Z_set_new.flatten()[max_idx]*1.01
+        max_phi = phi_set_new.flatten()[max_idx]*1.01
+        max_value = data_new.flatten()[max_idx]
+        ax.scatter([max_R], [max_phi], [max_Z], color='red', s=40, label=f'Max: {max_value:.2e}')
+
     cbar = plt.colorbar(sm, pad=0.1)
     cbar.set_label('Value Intensity', rotation=270, labelpad=15)
     ax.set_xlabel('R Axis', fontsize=10)
@@ -353,9 +361,9 @@ def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, i
         plt.show()
     else:
         if mask_name != '':
-            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_{mask_name}.png'), dpi=120)
+            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_{mask_name}.png'), dpi=300)
         else:
-            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_overall.png'), dpi=120)
+            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_overall.png'), dpi=300)
         #plt.show()
     plt.close(fig)
 
@@ -368,9 +376,9 @@ def parse_arguments():
     parser.add_argument("--name", required=True, help="Name of the data column to process.", default='heatF_tot_cd')
     parser.add_argument("-lim","--limit", nargs='+', type=float, default=[1e5], help="Data limits for plotting.")
     parser.add_argument("-nf", "--norm_factor", type=float, default=4.1006E-07, help="Normalization factor for data.")
-    parser.add_argument("-sf", "--plot_surface", action="store_true", default=False, help="Enable surface plotting from scatter data.")
+    parser.add_argument("-sf", "--plot_surface", action="store_true", default=True, help="Enable surface plotting from scatter data.")
     parser.add_argument("-o", "--overall", action="store_true",default=False, help="Enable overall plotting.")
-    parser.add_argument("-debug", action="store_true", default=True, help="Enable debug mode.")
+    parser.add_argument("-debug","--DEBUG", action="store_true", default=False, help="Enable debug mode.")
     parser.add_argument("-test", "--test_flag", action="store_true", default=False, help="Enable test flag for new feature.")
     parser.add_argument("-log", "--log_norm", action="store_true", default=False, help="Enable logarithmic normalization for color mapping.")
     parser.add_argument("-xpt", "--xpoints", nargs='+',type=float, default=None, help="Xpoints positions for slicing. If the surface run into folding, please provide two Xpoints positions as four float numbers: x1 z1 x2 z2")
@@ -388,7 +396,7 @@ def debug_parse_arguments():
             self.norm_factor = 4.1006E-07
             self.plot_surface = True
             self.overall = True
-            self.debug = True
+            self.DEBUG = True
             self.test_flag = True
             self.log_norm = True
             self.xpoints = [[0.73, 0.877], [0.75, -0.8]]
@@ -431,13 +439,18 @@ def mask_choose(R_set_org,Z_set_org,mask):
     return masks, angs
 
 def main():
+    global DEBUG
+    global test_flag
     
-    if DEBUG:
+    args = parse_arguments()
+    DEBUG = False
+    test_flag = False
+    if args.DEBUG:
+        DEBUG = True
         args = debug_parse_arguments()
-    else:
-        args = parse_arguments()
+        
     if args.test_flag:
-        global test_flag
+
         test_flag = True
     xpoints = None
     if args.xpoints is not None:
@@ -450,8 +463,8 @@ def main():
         fig_destiny = os.path.join(os.getcwd(), f"figure_3d_surface_{args.time}")
     else:
         fig_destiny = os.path.join(os.getcwd(), f"figure_3d_scatter_{args.time}")
-    
     ensure_directory_exists(fig_destiny)
+
 
     tss = [args.time]
     iplane = args.iplane
@@ -465,7 +478,7 @@ def main():
         t_now, q_data = process_timestep((ts, file_addr, iplane, names, xpoints), filename=os.path.basename(args.file))
         t_phys = t_now[ts] * norm_factor
         data_set[t_now[ts]] = q_data
-        if args.debug:
+        if args.DEBUG:
             print(f"Processed time {t_now[ts]:.2e} with shape {q_data['R'].shape}, {q_data['Z'].shape}, {q_data['phi'].shape}, t_phys={t_phys:.2e}")
 
 
@@ -490,7 +503,7 @@ def main():
             phi_set = phi_set_org[mask_overall]
             data = data_org[mask_overall]
 
-            fig = plt.figure(figsize=(8, 6))
+            fig = plt.figure(figsize=(8, 6),dpi=300)
             ax = fig.add_subplot(111, projection='3d')
             cmap = plt.get_cmap('viridis')
             if args.plot_surface:
@@ -501,9 +514,9 @@ def main():
                 # 将 mask 重塑为二维，与网格对齐
                 mask_grid = np.reshape(mask_overall, (iplane, -1), order='C')
 
-                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30))
+                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max)
             else:
-                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30))
+                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max)
 
     else: # plot leg strike points
         for key in data_set.keys():
@@ -526,14 +539,14 @@ def main():
             for mask_name, mask in masks.items():
                 
                 
-                fig = plt.figure(figsize=(8, 6))
+                fig = plt.figure(figsize=(8, 6),dpi=300)
                 ax = fig.add_subplot(111, projection='3d')
                 
                 if args.plot_surface:
                     
                     ang = angs[mask_name]
 
-                    plot_surface_from_scatter_dict(fig, ax, {'R': R_set_org, 'Z': Z_set_org, 'phi': phi_set_org, 'val': data_org}, cmap='viridis', log=args.log_norm, names=names, time_phys=time_phys, mask=mask, iplane=iplane, fig_destiny=fig_destiny, angs=angs[mask_name], mask_name=mask_name)
+                    plot_surface_from_scatter_dict(fig, ax, {'R': R_set_org, 'Z': Z_set_org, 'phi': phi_set_org, 'val': data_org}, cmap='viridis', log=args.log_norm, names=names, time_phys=time_phys, mask=mask, iplane=iplane, fig_destiny=fig_destiny, angs=angs[mask_name], mask_name=mask_name, find_max=args.find_max, DEBUG=DEBUG, test_flag=test_flag)
 
                 else:
                     ang = angs[mask_name]
@@ -542,7 +555,7 @@ def main():
                     phi_set = phi_set_org[mask]
                     data = data_org[mask]
 
-                    plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap='viridis', log=args.log_norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=ang, mask_name=mask_name)
+                    plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap='viridis', log=args.log_norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=ang, mask_name=mask_name, find_max=args.find_max, DEBUG=DEBUG, test_flag=test_flag)
 
 
 if __name__ == '__main__':

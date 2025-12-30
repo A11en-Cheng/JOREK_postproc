@@ -501,9 +501,9 @@ def main():
             phi_set = phi_set_org[mask_overall]
             data = data_org[mask_overall]
 
-            fig = plt.figure(figsize=(8, 6),dpi=300)
-            ax = fig.add_subplot(111, projection='3d')
-            cmap = plt.get_cmap('viridis')
+            
+            mask_name = ['overall', 'overall_back']
+            angs = [(30,30), (30,210)]
             if args.plot_surface:
                 R_grid = np.reshape(R_set_org, (iplane, -1), order='C')
                 Z_grid = np.reshape(Z_set_org, (iplane, -1), order='C')
@@ -511,12 +511,17 @@ def main():
                 data_grid = np.reshape(data_org, (iplane, -1), order='C')
                 # 将 mask 重塑为二维，与网格对齐
                 mask_grid = np.reshape(mask_overall, (iplane, -1), order='C')
-
-                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max, mask_name='overall')
-                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,-30), find_max=args.find_max, mask_name='overall_back')
+                for mask, ang in zip(mask_name, angs):
+                    fig = plt.figure(figsize=(8, 6),dpi=300)
+                    ax = fig.add_subplot(111, projection='3d')
+                    cmap = plt.get_cmap('viridis')
+                    plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=ang, find_max=args.find_max, mask_name=mask, DEBUG=DEBUG, test_flag=test_flag)
             else:
-                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max, mask_name='overall')
-                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,-30), find_max=args.find_max, mask_name='overall_back')
+                for mask, ang in zip(mask_name, angs):
+                    fig = plt.figure(figsize=(8, 6),dpi=300)
+                    ax = fig.add_subplot(111, projection='3d')
+                    cmap = plt.get_cmap('viridis')
+                    plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=ang, find_max=args.find_max, mask_name=mask, DEBUG=DEBUG, test_flag=test_flag)
 
     else: # plot leg strike points
         for key in data_set.keys():

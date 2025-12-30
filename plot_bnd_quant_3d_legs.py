@@ -360,10 +360,8 @@ def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, i
     if DEBUG or test_flag:
         plt.show()
     else:
-        if mask_name != '':
-            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_{mask_name}.png'), dpi=300)
-        else:
-            plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_overall.png'), dpi=300)
+        
+        plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_{mask_name}.png'), dpi=300)
         #plt.show()
     plt.close(fig)
 
@@ -514,9 +512,11 @@ def main():
                 # 将 mask 重塑为二维，与网格对齐
                 mask_grid = np.reshape(mask_overall, (iplane, -1), order='C')
 
-                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max)
+                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max, mask_name='overall')
+                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,-30), find_max=args.find_max, mask_name='overall_back')
             else:
-                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max)
+                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30), find_max=args.find_max, mask_name='overall')
+                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,-30), find_max=args.find_max, mask_name='overall_back')
 
     else: # plot leg strike points
         for key in data_set.keys():

@@ -53,67 +53,6 @@ def read_boundary_file(file_path, DEBUG=0):
     
     return col_names, blocks, t_nowall
 
-#def reshape_to_grid(block,col_names,names,iplane): #abandened
-    '''
-    normalize data to 3x3 matrix
-    input names: [x_name, y_name, z_name, data_name] should be two column names and one data name
-    output sorted_df: {x_name: x_grid, y_name: y_grid, data_name: data_grid}
-    '''
-    dataidx = names[-1] 
-    if dataidx not in col_names:
-        raise ValueError(f"Data index '{dataidx}' not found in column names.")
-    df = {}
-    
-    for idx_col, name in enumerate(col_names):
-        df[name] = block[:, idx_col]
-    
-    x = df[names[0]]  # R
-    y = df[names[2]]  # phi
-    z = df[names[1]]  # Z
-
-    data = df[dataidx]
-
-    dtype = [('x', float), ('y', float), ('z', float), ('data', float)]
-    points = np.zeros(len(x), dtype=dtype)
-    points['x'] = x
-    points['y'] = y
-    points['z'] = z
-    points['data'] = data
-    
-    sorted_indices = np.lexsort((points['z'], points['y'], points['x']))
-    sorted_points = points[sorted_indices]
-    
-    x_sorted = sorted_points['x']
-    y_sorted = sorted_points['y']
-    z_sorted = sorted_points['z']
-    data_sorted = sorted_points['data']
-
-    
-    #lenth = 128*888  # iplane * 888
-    lenth = 1080*1080
-    row = int(iplane)
-    col = int(lenth//iplane)
-    print(row, col)
-    
-    x_grid = np.reshape(points['x'], (row, col))
-    y_grid = np.reshape(points['y'], (row, col))
-    z_grid = np.reshape(points['z'], (row, col))
-    data_grid = np.reshape(data_sorted, (row, col))
-    
-    sorted_df = {
-        names[0]: x_grid[0,:],
-        names[1]: z_grid[0,:],
-        names[2]: y_grid[:,0],
-        dataidx : data_grid
-    }
-    sorted_df = {
-        names[0]: x,
-        names[1]: z,
-        names[2]: y,
-        dataidx : data
-    }
-    print('Sorted.')
-    return sorted_df
 
 def reshape_to_grid_updated(block, col_names, names, iplane=None,xpoints=None):
     """
@@ -302,9 +241,7 @@ def reshape_to_grid_updated(block, col_names, names, iplane=None,xpoints=None):
     return sorted_df
 
 def find_max(df,names,time):
-    x_grid = df[names[0]]
-    y_grid = df[names[1]]
-    data = df[names[2]]
+
     
     max_val = np.max(data)
     if max_val == 0:
@@ -422,86 +359,6 @@ def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, i
         #plt.show()
     plt.close(fig)
 
-def plot_surface_from_scatter_dict_triang(fig, ax, data, log, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30), mask_name=''):
-    # 提取数据
-    R = np.array(data['R'])
-    Z = np.array(data['Z'])
-    phi = np.array(data['phi'])
-    val = np.array(data['val'])
-
-    # 确保数据有效
-    valid_mask = ~np.isnan(R) & ~np.isnan(Z) & ~np.isnan(phi) & ~np.isnan(val)
-    R, Z, phi, val = R[valid_mask], Z[valid_mask], phi[valid_mask], val[valid_mask]
-
-    # 去除重复点
-    #unique_points, unique_indices = np.unique(np.column_stack((R, Z, phi)), axis=0, return_index=True)
-    #R, Z, phi, val = unique_points[:, 0], unique_points[:, 1], unique_points[:, 2], val[unique_indices]
-
-    if val.size == 0:
-        raise ValueError("No valid data points available for plotting.")
-
-    # 设置颜色映射
-    if log:
-        norm = LogNorm(val.min(), val.max())
-    else:
-        norm = plt.Normalize(val.min(), val.max())
-
-    sm = cm.ScalarMappable(norm=norm, cmap=cmap)
-    sm.set_array(val)
-    print(f"Triangulation points count: {R.shape[0]}")
-
-    # 创建三角剖分对象
-    tri = mtri.Triangulation(Z, R)
-
-    # 计算每个三角形的边长平方
-    mask = np.zeros(len(tri.triangles), dtype=bool)
-    R_tri = R[tri.triangles]
-    Z_tri = Z[tri.triangles]
-
-    dist0 = (R_tri[:, 0] - R_tri[:, 1])**2 + (Z_tri[:, 0] - Z_tri[:, 1])**2
-    dist1 = (R_tri[:, 1] - R_tri[:, 2])**2 + (Z_tri[:, 1] - Z_tri[:, 2])**2
-    dist2 = (R_tri[:, 2] - R_tri[:, 0])**2 + (Z_tri[:, 2] - Z_tri[:, 0])**2
-
-    # 设置过滤阈值：平均边长的 2 倍
-    max_radius = np.mean([dist0, dist1, dist2]) * 2.0
-    mask = np.where((dist0 > max_radius) | (dist1 > max_radius) | (dist2 > max_radius), True, False)
-
-    # 应用 Mask
-    tri.set_mask(mask)
-    print(type(tri))
-
-    # 绘制三角剖分图
-    sc = ax.plot_trisurf(
-        tri.y, phi, tri.x,
-        cmap=cmap,
-        norm=norm,
-        edgecolor='none',
-        alpha=1,
-        linewidth=0
-    )
-    sc.set_array(val)
-    sc.set_clim(val.min(), val.max())
-
-    # 添加颜色条
-    cbar = plt.colorbar(sm, ax=ax, pad=0.1)
-    cbar.set_label('Value Intensity', rotation=270, labelpad=15)
-
-    ax.set_xlabel('R Axis', fontsize=10)
-    ax.set_ylabel('phi Axis', fontsize=10)
-    ax.set_zlabel('Z Axis', fontsize=10)
-    ax.set_aspect('equalxz')
-    ax.view_init(*angs)
-
-    # 保存或显示图像
-    if DEBUG or test_flag:
-        plt.show()
-    else:
-        filename = f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_{mask_name if mask_name else "overall"}_tri.png'
-        save_path = os.path.join(fig_destiny, filename)
-        plt.savefig(save_path, dpi=120)
-
-    plt.close(fig)
-    
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Process and plot boundary quantities.")
@@ -517,6 +374,7 @@ def parse_arguments():
     parser.add_argument("-test", "--test_flag", action="store_true", default=False, help="Enable test flag for new feature.")
     parser.add_argument("-log", "--log_norm", action="store_true", default=False, help="Enable logarithmic normalization for color mapping.")
     parser.add_argument("-xpt", "--xpoints", nargs='+',type=float, default=None, help="Xpoints positions for slicing. If the surface run into folding, please provide two Xpoints positions as four float numbers: x1 z1 x2 z2")
+    parser.add_argument("-m", "--find_max", action="store_true", default=True,help="Plot maximum value location.")
     return parser.parse_args()
 
 def debug_parse_arguments():
@@ -534,6 +392,7 @@ def debug_parse_arguments():
             self.test_flag = True
             self.log_norm = True
             self.xpoints = [[0.73, 0.877], [0.75, -0.8]]
+            self.find_max = False
     return Args()
 
 def ensure_directory_exists(directory):

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import argparse
-
+import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 DEBUG = False
@@ -53,7 +53,7 @@ def read_boundary_file(file_path, DEBUG=0):
     
     return col_names, blocks, t_nowall
 
-def reshape_to_grid(block,col_names,names,iplane):
+#def reshape_to_grid(block,col_names,names,iplane): #abandened
     '''
     normalize data to 3x3 matrix
     input names: [x_name, y_name, z_name, data_name] should be two column names and one data name
@@ -115,6 +115,192 @@ def reshape_to_grid(block,col_names,names,iplane):
     print('Sorted.')
     return sorted_df
 
+def reshape_to_grid_updated(block, col_names, names, iplane=None,xpoints=None):
+    """
+    Reshapes unstructured 1D point data into structured 2D grids (Toroidal x Poloidal).
+
+    This function groups raw data by unique toroidal planes (Phi), performs poloidal sorting 
+    on the (R, Z) coordinates within each slice, and stacks them into 2D meshes suitable 
+    for surface plotting.
+
+    Parameters
+    ----------
+    block : numpy.ndarray
+        The raw input data matrix of shape (N_samples, N_features).
+    col_names : list of str
+        The list of column headers corresponding to the columns in `block`.
+    names : list or tuple
+        A list of 4 strings mapping specific physics quantities to column names.
+        Expected order: [R_name, Z_name, phi_name, val_name].
+    iplane : int, optional
+        Index of the plane (currently unused/reserved).
+    xpoints : numpy.ndarray, optional
+        Array of shape (2, 2) defining X-point coordinates for complex geometries.
+        If provided, sorting is split into upper/lower segments based on these points.
+        If None, a standard centroid-based angular sorting is applied.
+
+    Returns
+    -------
+    dict
+        A dictionary containing the reshaped 2D grids keyed by the original column names:
+        - R (N_phi, N_poloidal)
+        - Z (N_phi, N_poloidal)
+        - Phi (N_phi, N_poloidal)
+        - Value (N_phi, N_poloidal)
+
+    Raises
+    ------
+    ValueError
+        If the specified column names in `names` are not found in `col_names`.
+    """
+    
+    # 1. 解析列名对应关系
+    # names input expected: [R_name, Z_name, phi_name, val_name]
+    r_col_name, z_col_name, phi_col_name, val_col_name = names
+    
+    try:
+        r_idx = col_names.index(r_col_name)
+        z_idx = col_names.index(z_col_name)
+        phi_idx = col_names.index(phi_col_name)
+        val_idx = col_names.index(val_col_name)
+    except ValueError as e:
+        raise ValueError(f"Column name mismatch: {e}")
+
+    # 提取原始一维数据
+    R_raw = block[:, r_idx]
+    Z_raw = block[:, z_idx]
+    phi_raw = block[:, phi_idx]
+    val_raw = block[:, val_idx]
+
+    # 2. 识别唯一的 Phi 切面 (Toroidal Planes)
+    # 由于浮点误差，需要保留几位小数后取唯一值
+    # 假设 phi 是主要的切分维度
+    unique_phi = np.unique(np.round(phi_raw, 5))
+    unique_phi.sort() # 确保 phi 从小到大排列
+    
+    n_phi = len(unique_phi)
+    print(f"Detected {n_phi} toroidal planes (phi slices).")
+
+    # 容器：用于存放整理后的每一圈的数据
+    R_slices = []
+    Z_slices = []
+    Phi_slices = [] # 虽然每层一样，但为了生成网格，还是存一下
+    Val_slices = []
+    
+    points_per_slice = []
+
+    # 3. 遍历每个 Phi 切面进行 R-Z 排序
+    for current_phi in unique_phi:
+        # 3.1 提取当前切面的所有点
+        # 使用近似匹配防止浮点数精度问题
+        mask = np.abs(phi_raw - current_phi) < 1e-4
+        
+        if xpoints is not None: # todo: this is currently for dxpoint; need to be improved for general use
+            c_rup,c_zup = xpoints[1,:]
+            c_rdn,c_zdn = xpoints[0,:]
+            mask_xpt_up = Z_raw[mask]>=0
+            mask_xpt_dn = Z_raw[mask]<0
+            
+            
+            r_slice_up = R_raw[mask][mask_xpt_up]
+            z_slice_up = Z_raw[mask][mask_xpt_up]
+            r_slice_dn = R_raw[mask][mask_xpt_dn]
+            z_slice_dn = Z_raw[mask][mask_xpt_dn]
+            
+            angles_up = np.arctan2(z_slice_up - c_zup, r_slice_up - c_rup)
+            angles_dn = np.arctan2(z_slice_dn - c_zdn, r_slice_dn - c_rdn)
+            
+            angle_up_0 = np.arctan2(-c_zup, np.max(r_slice_up) - c_rup)
+            angle_down_0 = np.arctan2(-c_zdn, np.min(r_slice_dn) - c_rdn)
+            
+            idx_angle_up_0 = np.argmin(np.abs(angles_up - angle_up_0)) 
+            idx_angle_down_0 = np.argmin(np.abs(angles_dn - angle_down_0))
+            sort_org_up = np.argsort(angles_up)
+            sort_org_dn = np.argsort(angles_dn)
+            
+            sort_idx_up = np.roll(sort_org_up, -np.where(sort_org_up == idx_angle_up_0)[0][0])
+            sort_idx_dn = np.roll(sort_org_dn, -np.where(sort_org_dn == idx_angle_down_0)[0][0])
+            
+            
+            R_slices.append(np.concatenate((r_slice_up[sort_idx_up],r_slice_dn[sort_idx_dn])))
+            Z_slices.append(np.concatenate((z_slice_up[sort_idx_up],z_slice_dn[sort_idx_dn])))
+            Phi_slices.append(np.full_like(np.concatenate((r_slice_up[sort_idx_up],r_slice_dn[sort_idx_dn])), current_phi))
+            Val_slices.append(np.concatenate((val_raw[mask][mask_xpt_up][sort_idx_up],val_raw[mask][mask_xpt_dn][sort_idx_dn])))
+            
+            points_per_slice.append(len(r_slice_up)+len(r_slice_dn))
+        
+        
+        else:
+            r_slice = R_raw[mask]
+            z_slice = Z_raw[mask]
+            v_slice = val_raw[mask]
+            
+            if len(r_slice) == 0: continue
+            
+            # 3.2 核心步骤：在 (R, Z) 平面上对点进行几何排序
+            # 针对闭合磁面或环形结构，使用“重心角度法”排序最稳健
+            # 计算重心 (Centroid)
+            c_r = np.mean(r_slice)
+            c_z = np.mean(z_slice)
+        
+        
+            print(f"Phi={current_phi:.5f}: Centroid at (R={c_r:.3f}, Z={c_z:.3f}), Points={len(r_slice)}")
+        
+            # 计算每个点相对于重心的角度 (-pi 到 pi)
+            # arctan2(y, x) -> arctan2(z - cz, r - cr)
+            angles = np.arctan2(z_slice - c_z, r_slice - c_r)
+            
+            # 获取排序后的索引
+            sort_idx = np.argsort(angles)
+            
+            # 存入排序后的切片
+            R_slices.append(r_slice[sort_idx])
+            Z_slices.append(z_slice[sort_idx])
+            # Phi 这一层全是同一个值，但也需要展开成数组以便后续堆叠
+            Phi_slices.append(np.full_like(r_slice, current_phi))
+            Val_slices.append(v_slice[sort_idx])
+            
+            points_per_slice.append(len(r_slice))
+
+    # 4. 数据对齐检查与网格化
+    # plot_surface 要求矩阵每一行的列数必须相同。
+    # 如果不同 phi 切面上的点数不一样（例如网格有缺失），这里需要处理。
+    
+    # 检查是否所有切面的点数一致
+    if len(set(points_per_slice)) > 1:
+        print(f"Warning: Points per slice vary: {set(points_per_slice)}")
+        print("Truncating to minimum common size (or you might want to interpolate).")
+        min_points = min(points_per_slice)
+        # 简单截断策略：只取前 min_points 个点（前提是已经按角度排好序了，截断只会少一小段）
+        # 更优策略是插值，但为了代码简洁先做截断/重采样
+        for i in range(len(R_slices)):
+            # 这里为了保证闭合性，最好是重采样而不是直接截断。
+            # 这里暂时使用简单的切片，实际物理数据通常点数是一致的。
+            R_slices[i] = R_slices[i][:min_points]
+            Z_slices[i] = Z_slices[i][:min_points]
+            Phi_slices[i] = Phi_slices[i][:min_points]
+            Val_slices[i] = Val_slices[i][:min_points]
+    
+    # 5. 堆叠成 2D 矩阵 (N_phi x N_poloidal)
+    R_grid = np.vstack(R_slices)
+    Z_grid = np.vstack(Z_slices)
+    Phi_grid = np.vstack(Phi_slices)
+    Val_grid = np.vstack(Val_slices)
+    
+    print(f"Reshaped grid size: {R_grid.shape}")
+    
+    # 6. 返回结果
+    # 注意：为了配合 plot_surface，这里返回完整的网格矩阵
+    sorted_df = {
+        r_col_name: R_grid,
+        z_col_name: Z_grid,
+        phi_col_name: Phi_grid,
+        val_col_name: Val_grid
+    }
+    
+    print('Sorted and Reshaped Successfully.')
+    return sorted_df
+
 def find_max(df,names,time):
     x_grid = df[names[0]]
     y_grid = df[names[1]]
@@ -131,7 +317,7 @@ def find_max(df,names,time):
 
 def process_timestep(args,filename = None):
     """处理单个时间步的任务函数"""
-    ts, file_addr, iplane, names = args
+    ts, file_addr, iplane, names, xpoints = args
     if filename == None:
         file_name = f'boundary_quantities_s0{ts}.dat'
     else:
@@ -145,17 +331,23 @@ def process_timestep(args,filename = None):
         if block_data is None:
             return ts, None
         
-        grid_data = reshape_to_grid(block_data, col_names, names, iplane)
+        print(f"Processing timestep {ts} with {block_data.shape[0]} points.")
+        grid_data = reshape_to_grid_updated(block_data, col_names, names, iplane,xpoints=xpoints)
+
         return t_now, grid_data
     except Exception as e:
         print(f"Error processing timestep {ts}: {e}")
         return ts, None
 
-def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='viridis', fig_destiny='figure_3d_scatter', angs=(30,30), mask_name=''):
+def plot_scatter_from_scatter_dict(fig, ax, data, log, names, time_phys, cmap='viridis', fig_destiny='figure_3d_scatter', angs=(30,30), mask_name=''):
     R = np.array(data['R'])
     Z = np.array(data['Z'])
     phi = np.array(data['phi'])
     val = np.array(data['val'])
+    if log:
+        norm = LogNorm(val.min(), val.max())
+    else:
+        norm = plt.Normalize(val.min(), val.max())
     sm = cm.ScalarMappable(norm=norm, cmap=cmap)
     sm.set_array(val)
     
@@ -183,7 +375,7 @@ def plot_scatter_from_scatter_dict(fig, ax, data, norm, names, time_phys, cmap='
             plt.savefig(os.path.join(fig_destiny, f'3d_plot_{time_phys}ms_{names[-1]}_scatter_overall.png'), dpi=300)
     plt.close(fig)
 
-def plot_surface_from_scatter_dict(fig, ax, data, norm, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30), mask_name=''):
+def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30), mask_name=''):
 
     # 保持二维形状：在 mask 为 False 的位置填充 NaN（plot_surface 会忽略 NaN 区域）
     R_set_new = np.where(mask, data['R'], np.nan)
@@ -191,8 +383,17 @@ def plot_surface_from_scatter_dict(fig, ax, data, norm, names, time_phys, mask, 
     phi_set_new = np.where(mask, data['phi'], np.nan)
     data_new = np.where(mask, data['val'], np.nan)
 
+    # 确保 data_new 的最小值和最大值有效
+    valid_data = data_new[~np.isnan(data_new)]
+    if valid_data.size == 0:
+        raise ValueError("No valid data points available for plotting.")
+
+    if log:
+        norm = LogNorm(valid_data.min(), valid_data.max())
+    else:
+        norm = plt.Normalize(valid_data.min(), valid_data.max())
     sm = cm.ScalarMappable(norm=norm, cmap=cmap)
-    sm.set_array(data_new)
+    sm.set_array(valid_data)
     
     sc = ax.plot_surface(
         R_set_new, phi_set_new, Z_set_new,
@@ -220,7 +421,86 @@ def plot_surface_from_scatter_dict(fig, ax, data, norm, names, time_phys, mask, 
             plt.savefig(os.path.join(fig_destiny, f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_overall.png'), dpi=120)
         #plt.show()
     plt.close(fig)
-    
+
+def plot_surface_from_scatter_dict_triang(fig, ax, data, log, names, time_phys, mask, iplane, cmap='viridis', fig_destiny='figure_3d_surface', angs=(30,30), mask_name=''):
+    # 提取数据
+    R = np.array(data['R'])
+    Z = np.array(data['Z'])
+    phi = np.array(data['phi'])
+    val = np.array(data['val'])
+
+    # 确保数据有效
+    valid_mask = ~np.isnan(R) & ~np.isnan(Z) & ~np.isnan(phi) & ~np.isnan(val)
+    R, Z, phi, val = R[valid_mask], Z[valid_mask], phi[valid_mask], val[valid_mask]
+
+    # 去除重复点
+    #unique_points, unique_indices = np.unique(np.column_stack((R, Z, phi)), axis=0, return_index=True)
+    #R, Z, phi, val = unique_points[:, 0], unique_points[:, 1], unique_points[:, 2], val[unique_indices]
+
+    if val.size == 0:
+        raise ValueError("No valid data points available for plotting.")
+
+    # 设置颜色映射
+    if log:
+        norm = LogNorm(val.min(), val.max())
+    else:
+        norm = plt.Normalize(val.min(), val.max())
+
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array(val)
+    print(f"Triangulation points count: {R.shape[0]}")
+
+    # 创建三角剖分对象
+    tri = mtri.Triangulation(Z, R)
+
+    # 计算每个三角形的边长平方
+    mask = np.zeros(len(tri.triangles), dtype=bool)
+    R_tri = R[tri.triangles]
+    Z_tri = Z[tri.triangles]
+
+    dist0 = (R_tri[:, 0] - R_tri[:, 1])**2 + (Z_tri[:, 0] - Z_tri[:, 1])**2
+    dist1 = (R_tri[:, 1] - R_tri[:, 2])**2 + (Z_tri[:, 1] - Z_tri[:, 2])**2
+    dist2 = (R_tri[:, 2] - R_tri[:, 0])**2 + (Z_tri[:, 2] - Z_tri[:, 0])**2
+
+    # 设置过滤阈值：平均边长的 2 倍
+    max_radius = np.mean([dist0, dist1, dist2]) * 2.0
+    mask = np.where((dist0 > max_radius) | (dist1 > max_radius) | (dist2 > max_radius), True, False)
+
+    # 应用 Mask
+    tri.set_mask(mask)
+    print(type(tri))
+
+    # 绘制三角剖分图
+    sc = ax.plot_trisurf(
+        tri.y, phi, tri.x,
+        cmap=cmap,
+        norm=norm,
+        edgecolor='none',
+        alpha=1,
+        linewidth=0
+    )
+    sc.set_array(val)
+    sc.set_clim(val.min(), val.max())
+
+    # 添加颜色条
+    cbar = plt.colorbar(sm, ax=ax, pad=0.1)
+    cbar.set_label('Value Intensity', rotation=270, labelpad=15)
+
+    ax.set_xlabel('R Axis', fontsize=10)
+    ax.set_ylabel('phi Axis', fontsize=10)
+    ax.set_zlabel('Z Axis', fontsize=10)
+    ax.set_aspect('equalxz')
+    ax.view_init(*angs)
+
+    # 保存或显示图像
+    if DEBUG or test_flag:
+        plt.show()
+    else:
+        filename = f'3d_plot_{str(time_phys)}ms_{names[-1]}_surface_{mask_name if mask_name else "overall"}_tri.png'
+        save_path = os.path.join(fig_destiny, filename)
+        plt.savefig(save_path, dpi=120)
+
+    plt.close(fig)
     
 
 def parse_arguments():
@@ -233,10 +513,28 @@ def parse_arguments():
     parser.add_argument("-nf", "--norm_factor", type=float, default=4.1006E-07, help="Normalization factor for data.")
     parser.add_argument("-sf", "--plot_surface", action="store_true", default=False, help="Enable surface plotting from scatter data.")
     parser.add_argument("-o", "--overall", action="store_true",default=False, help="Enable overall plotting.")
-    parser.add_argument("-debug", action="store_true", default=False, help="Enable debug mode.")
-    parser.add_argument("-test", "--test_flag", action="store_true", default=False, help="Enable test flag.")
+    parser.add_argument("-debug", action="store_true", default=True, help="Enable debug mode.")
+    parser.add_argument("-test", "--test_flag", action="store_true", default=False, help="Enable test flag for new feature.")
     parser.add_argument("-log", "--log_norm", action="store_true", default=False, help="Enable logarithmic normalization for color mapping.")
+    parser.add_argument("-xpt", "--xpoints", nargs='+',type=float, default=None, help="Xpoints positions for slicing. If the surface run into folding, please provide two Xpoints positions as four float numbers: x1 z1 x2 z2")
     return parser.parse_args()
+
+def debug_parse_arguments():
+    class Args:
+        def __init__(self):
+            self.file = '/home/ac_desktop/syncfiles/postproc_145/boundary_quantities_s04200.dat'
+            self.time = '4200'
+            self.iplane = 1080
+            self.name = 'heatF_tot_cd'
+            self.limit = [1e5]
+            self.norm_factor = 4.1006E-07
+            self.plot_surface = True
+            self.overall = True
+            self.debug = True
+            self.test_flag = True
+            self.log_norm = True
+            self.xpoints = [[0.73, 0.877], [0.75, -0.8]]
+    return Args()
 
 def ensure_directory_exists(directory):
     if not os.path.exists(directory):
@@ -274,14 +572,19 @@ def mask_choose(R_set_org,Z_set_org,mask):
     return masks, angs
 
 def main():
-    args = parse_arguments()
-    if args.debug:
-        global DEBUG
-        DEBUG = True
+    
+    if DEBUG:
+        args = debug_parse_arguments()
+    else:
+        args = parse_arguments()
     if args.test_flag:
         global test_flag
         test_flag = True
-    
+    xpoints = None
+    if args.xpoints is not None:
+        print(type(args.xpoints))
+        xpoints = np.sort(np.array(args.xpoints, dtype=float).reshape(2, -1),axis=0)
+        print(xpoints)
     file_addr = os.path.dirname(args.file)
     
     if args.plot_surface:
@@ -300,11 +603,12 @@ def main():
     data_set = {}
     for ts in tss:
         ts = str(ts).zfill(6)
-        t_now, q_data = process_timestep((ts, file_addr, iplane, names), filename=os.path.basename(args.file))
+        t_now, q_data = process_timestep((ts, file_addr, iplane, names, xpoints), filename=os.path.basename(args.file))
         t_phys = t_now[ts] * norm_factor
         data_set[t_now[ts]] = q_data
         if args.debug:
             print(f"Processed time {t_now[ts]:.2e} with shape {q_data['R'].shape}, {q_data['Z'].shape}, {q_data['phi'].shape}, t_phys={t_phys:.2e}")
+
 
     if args.overall: # plot overall
         for key in data_set.keys():
@@ -330,10 +634,6 @@ def main():
             fig = plt.figure(figsize=(8, 6))
             ax = fig.add_subplot(111, projection='3d')
             cmap = plt.get_cmap('viridis')
-            if args.log_norm:
-                norm = LogNorm(1e5, lim[1])
-            else:
-                norm = plt.Normalize(lim[0], lim[1])
             if args.plot_surface:
                 R_grid = np.reshape(R_set_org, (iplane, -1), order='C')
                 Z_grid = np.reshape(Z_set_org, (iplane, -1), order='C')
@@ -342,9 +642,9 @@ def main():
                 # 将 mask 重塑为二维，与网格对齐
                 mask_grid = np.reshape(mask_overall, (iplane, -1), order='C')
 
-                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, cmap=cmap, norm=norm, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30))
+                plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=(30,30))
             else:
-                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap=cmap, norm=norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30))
+                plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, log=args.log_norm, cmap=cmap, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=(30,30))
 
     else: # plot leg strike points
         for key in data_set.keys():
@@ -369,20 +669,12 @@ def main():
                 
                 fig = plt.figure(figsize=(8, 6))
                 ax = fig.add_subplot(111, projection='3d')
-                cmap = plt.get_cmap('viridis')
-                norm = LogNorm(1e5, lim[1])
-                    
+                
                 if args.plot_surface:
-                    R_grid = np.reshape(R_set_org, (iplane, -1), order='C')
-                    Z_grid = np.reshape(Z_set_org, (iplane, -1), order='C')
-                    phi_grid = np.reshape(phi_set_org, (iplane, -1), order='C')
-                    data_grid = np.reshape(data_org, (iplane, -1), order='C')
-                    # 将 mask 重塑为二维，与网格对齐
-                    mask_grid = np.reshape(mask, (iplane, -1), order='C')
                     
                     ang = angs[mask_name]
 
-                    plot_surface_from_scatter_dict(fig, ax, {'R': R_grid, 'Z': Z_grid, 'phi': phi_grid, 'val': data_grid}, cmap='viridis', norm=norm, names=names, time_phys=time_phys, mask=mask_grid, iplane=iplane, fig_destiny=fig_destiny, angs=angs[mask_name], mask_name=mask_name)
+                    plot_surface_from_scatter_dict(fig, ax, {'R': R_set_org, 'Z': Z_set_org, 'phi': phi_set_org, 'val': data_org}, cmap='viridis', log=args.log_norm, names=names, time_phys=time_phys, mask=mask, iplane=iplane, fig_destiny=fig_destiny, angs=angs[mask_name], mask_name=mask_name)
 
                 else:
                     ang = angs[mask_name]
@@ -391,7 +683,7 @@ def main():
                     phi_set = phi_set_org[mask]
                     data = data_org[mask]
 
-                    plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap='viridis', norm=norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=ang, mask_name=mask_name)
+                    plot_scatter_from_scatter_dict(fig, ax, {'R': R_set, 'Z': Z_set, 'phi': phi_set, 'val': data}, cmap='viridis', log=args.log_norm, names=names, time_phys=time_phys, fig_destiny=fig_destiny, angs=ang, mask_name=mask_name)
 
 
 if __name__ == '__main__':

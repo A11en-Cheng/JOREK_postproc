@@ -191,12 +191,14 @@ if __name__ == "__main__":
     
     # 2. 绘图
     # 将你的文件名填入这里
-    '''plot_mesh_system(
+    plot_mesh_system(
         grid_file="/home/ac_desktop/XL50-U/XL50-U_1.4.5/grid_xpoint.dat", 
-        boundary_files=["/home/ac_desktop/XL50-U_nl/wallcontour_updated.dat", "/home/ac_desktop/XL50-U_nl/wallcontour_adjusted.dat"],
+        boundary_files=[],
         title="X-point Grid"
-    )'''
+    )
+    '''
     plot_mesh_system(
         boundary_files=["/home/ac_desktop/XL50-U_nl/wallcontour_updated.dat", "/home/ac_desktop/XL50-U_nl/wallcontour_adjusted.dat"],
         title="Boundary Comparison"
     )
+    '''

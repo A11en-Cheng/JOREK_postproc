@@ -332,7 +332,7 @@ def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, i
     kwargs = {'rcount': len(phi_set_new[:,0]), 'ccount': len(R_set_new[0,:]), 'lw': 0, 'edgecolor': 'none', 'antialiased': False, 'shade': False}
     if DEBUG or test_flag:
         kwargs['rcount'] = 100
-        kwargs['ccount'] = 100
+        kwargs['ccount'] = 1080
         kwargs['antialiased'] = True
     sc = ax.plot_surface(
         R_set_new, phi_set_new, Z_set_new,
@@ -345,7 +345,7 @@ def plot_surface_from_scatter_dict(fig, ax, data, log, names, time_phys, mask, i
         max_idx = np.nanargmax(data_new)
         max_R = R_set_new.flatten()[max_idx]*1.01
         max_Z = Z_set_new.flatten()[max_idx]*1.01
-        max_phi = phi_set_new.flatten()[max_idx]*1.01
+        max_phi = phi_set_new.flatten()[max_idx]
         max_value = data_new.flatten()[max_idx]
         ax.scatter([max_R], [max_phi], [max_Z], color='red', s=40, label=f'Max: {max_value:.2e}')
 
@@ -414,10 +414,10 @@ def mask_choose(R_set_org,Z_set_org,mask):
             'mask_LI': (R_set_org >= 0.3) & (R_set_org <= 0.6) & (Z_set_org <= -0.75) & (Z_set_org >= -1.2),
         }
         angs = {
-            'mask_UO': (36, 27),
-            'mask_LO': (-36, -27),
-            'mask_UI': (23, 163),
-            'mask_LI': (-23, -163),
+            'mask_UO': (44, 15),
+            'mask_LO': (-44, -15),
+            'mask_UI': (24, 168),
+            'mask_LI': (-24, -168),
         }
     elif mask == 'ITER':
         masks = {
@@ -429,7 +429,7 @@ def mask_choose(R_set_org,Z_set_org,mask):
         angs = {
             'mask_UO'    :  (40,45),
             'mask_LO'    :  (-40,-45),
-            'mask_UI'    :  (20,150),
+            'mask_UI'    :  (24,150),
             'mask_LI'    :  (-20,-150),
         }
     else:
@@ -469,6 +469,8 @@ def main():
     names = ['R', 'Z', 'phi', args.name]
     norm_factor = 4.1006E-07  # jorekU to s conversion factor
     lim = [1e5]
+    if args.limit:
+        lim = args.limit
 
     data_set = {}
     for ts in tss:

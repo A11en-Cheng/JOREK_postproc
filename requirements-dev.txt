@@ -1,0 +1,32 @@
+# 开发依赖
+
+# 测试框架
+pytest>=6.0
+pytest-cov>=2.10
+pytest-xdist>=2.0
+
+# 代码质量
+black>=21.0
+flake8>=3.9
+pylint>=2.10
+mypy>=0.900
+isort>=5.0
+
+# 文档
+sphinx>=3.0
+sphinx-rtd-theme>=1.0
+sphinx-autodoc-typehints>=1.0
+
+# 构建和发布
+build>=0.5
+twine>=3.4
+wheel>=0.35
+
+# 开发工具
+ipython>=7.0
+jupyter>=1.0
+notebook>=6.0
+
+# 其他
+tox>=3.20
+pre-commit>=2.10

@@ -36,9 +36,14 @@ JOREK后处理包 - 边界量可视化工具
   对于新装置，可创建新的掩膜生成函数并通过register_custom_device()注册
 """
 
-__version__ = '0.1.0'
-__author__ = 'Your Name'
+from .__version__ import __version__, __author__, __email__, __license__
 __all__ = [
+    # 版本和信息
+    '__version__',
+    '__author__',
+    '__email__',
+    '__license__',
+    
     # 数据模型
     'BoundaryQuantitiesData',
     'DeviceGeometry',
@@ -68,6 +73,12 @@ __all__ = [
     'ProcessingConfig',
     'parse_args',
     'create_debug_config',
+    
+    # 日志和诊断
+    'setup_logging',
+    'get_logger',
+    'run_diagnostics',
+    'check_environment',
 ]
 
 # 导入子模块
@@ -86,3 +97,5 @@ from .geometry import (
 )
 from .plotting import plot_scatter_3d, plot_surface_3d
 from .config import ProcessingConfig, parse_args, create_debug_config
+from .logging import setup_logging, get_logger
+from .diagnostics import run_diagnostics, check_environment

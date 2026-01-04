@@ -230,9 +230,9 @@ class ProcessingConfig:
 
 ## 高级特性
 
-### X点处理（双X点撕裂模）
+### X点处理（双x非凸壁位形）
 
-对于具有双X点的撕裂模，可提供X点坐标以改进数据排序：
+对于具有双X点的非凸壁位形，可提供X点坐标以改进数据排序：
 
 ```python
 xpoints = np.array([[x1, z1], [x2, z2]], dtype=float)

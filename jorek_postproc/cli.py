@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from . import config as cfg
+from . import energy_impact  # 新增导入
 from . import (
     read_boundary_file,
     reshape_to_grid,
@@ -179,6 +180,26 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
     print("✓ 处理完成！")
     print("="*70)
 
+def process_energy_impact(conf: cfg.ProcessingConfig):
+    """
+    处理能量冲击计算的完整流程。
+    """
+    print("\n" + "="*70)
+    print(f"启动能量冲击分析 (Energy Impact Analysis)")
+    print(f"基准文件路径：{conf.file_path}")
+    print(f"包含时间步数：{len(conf.timesteps)}")
+    print(f"物理量：{conf.data_name}")
+    print("="*70)
+
+    try:
+        # 调用新模块的处理函数
+        energy_impact.run_energy_impact_analysis(conf)
+    except Exception as e:
+        print(f"\n✗ 能量冲击计算失败：{e}")
+        
+        import traceback
+        traceback.print_exc()
+
 
 def main():
     """
@@ -198,7 +219,10 @@ def main():
             print(f"  绘图模式：{'表面图' if conf.plot_surface else '散点图'}")
         
         # 处理数据
-        process_single_timestep(conf)
+        if not conf.energy_impact:
+            process_single_timestep(conf)
+        else:
+            process_energy_impact(conf)
         
     except KeyboardInterrupt:
         print("\n\n用户中断处理")

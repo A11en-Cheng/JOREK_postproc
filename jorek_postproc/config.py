@@ -43,6 +43,10 @@ class ProcessingConfig:
         X点坐标 [x1, z1, x2, z2]，用于双X点表面整理
     debug : bool
         调试模式标志
+    energy_impact : bool
+        是否启用能量冲击计算
+    save_convolution : bool
+        是否保存卷积计算结果 (.npz)
     """
     file_path: str
     timesteps: List[str]
@@ -58,6 +62,8 @@ class ProcessingConfig:
     output_dir: Optional[str] = None
     xpoints: List[float] = field(default_factory=list)
     debug: bool = False
+    energy_impact: bool = False
+    save_convolution: bool = False
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -188,6 +194,20 @@ def create_parser() -> argparse.ArgumentParser:
         help="启用调试模式"
     )
     
+    parser.add_argument(
+        "--energy_impact",
+        action='store_true',
+        default=False,
+        help="启用能量冲击计算"
+    )
+    
+    parser.add_argument(
+        "--save-convolution",
+        action='store_true',
+        default=False,
+        help="保存卷积计算结果 (.npz)"
+    )
+    
     return parser
 
 
@@ -231,7 +251,9 @@ def parse_args(args=None) -> ProcessingConfig:
         find_max=parsed.find_max,
         output_dir=parsed.output_dir,
         xpoints=xpoints,
-        debug=parsed.debug
+        debug=parsed.debug,
+        energy_impact=parsed.energy_impact,
+        save_convolution=parsed.save_convolution
     )
 
 
@@ -258,5 +280,7 @@ def create_debug_config() -> ProcessingConfig:
         find_max=False,
         output_dir=None,
         xpoints=None,
-        debug=True
+        debug=True,
+        energy_impact=False,
+        save_convolution=False
     )

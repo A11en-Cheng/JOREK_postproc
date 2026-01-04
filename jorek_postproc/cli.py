@@ -74,7 +74,9 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
             # 处理xpoints
             xpoints = None
             if conf.xpoints is not None:
-                xpoints = np.array(conf.xpoints, dtype=float)
+                xpoints = np.array(conf.xpoints, dtype=float).reshape(-1, 2)
+                xpoints.sort(axis=0)
+            print(f"  ✓ 使用xpoints：\n{xpoints}" if xpoints is not None else "  ✓ 未使用xpoints")
             
             grid_data = reshape_to_grid(
                 block_data, col_names, names,

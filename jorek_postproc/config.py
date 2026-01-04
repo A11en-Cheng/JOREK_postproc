@@ -3,8 +3,9 @@ Configuration and command-line argument parsing for boundary quantities processi
 """
 
 import argparse
-from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
+from dataclasses import dataclass, field
+import sys
 
 
 @dataclass
@@ -48,14 +49,14 @@ class ProcessingConfig:
     iplane: int = 1080
     data_name: str = 'heatF_tot_cd'
     device: str = 'EXL50U'
-    data_limits: Optional[List[float]] = None
+    data_limits: List[float] = field(default_factory=lambda: [1e5, 3e8])
     norm_factor: Optional[float] = None
     plot_surface: bool = True
     plot_overall: bool = False
     log_norm: bool = False
     find_max: bool = True
     output_dir: Optional[str] = None
-    xpoints: Optional[List[float]] = None
+    xpoints: List[float] = field(default_factory=list)
     debug: bool = False
 
 

@@ -88,14 +88,7 @@ def plot_scatter_3d(
     
     # 标记最大值
     if config.find_max:
-        max_idx = np.nanargmax(val)
-        max_R = R.flatten()[max_idx]
-        max_Z = Z.flatten()[max_idx]
-        max_phi = phi.flatten()[max_idx]
-        max_value = val.flatten()[max_idx]
-        ax.scatter([max_R], [max_phi], [max_Z], color='red', s=40, 
-                  label=f'Max: {max_value:.2e}')
-        ax.legend()
+        plot_max_point(R, Z, phi, val, ax)
     
     # 设置坐标轴
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
@@ -210,14 +203,7 @@ def plot_surface_3d(
     
     # 标记最大值
     if config.find_max:
-        max_idx = np.nanargmax(data_plot)
-        max_R = R_plot.flatten()[max_idx] * 1.01
-        max_Z = Z_plot.flatten()[max_idx] * 1.01
-        max_phi = phi_plot.flatten()[max_idx]
-        max_value = data_plot.flatten()[max_idx]
-        ax.scatter([max_R], [max_phi], [max_Z], color='red', s=40,
-                  label=f'Max: {max_value:.2e}')
-        ax.legend()
+        plot_max_point(R_plot, Z_plot, phi_plot, data_plot, ax)
     
     # 设置坐标轴
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
@@ -237,3 +223,40 @@ def plot_surface_3d(
         plt.show()
     
     plt.close(fig)
+
+
+def plot_max_point(R, Z, phi, val, ax):
+    """
+    标记最大值。
+    计算phi面上RZ图形的重心，从而找到图形外部/内部的方向，
+    并让最大值的R,Z坐标适当向外延伸一些。
+    """
+    # 展平数据
+    R_flat = R.flatten()
+    Z_flat = Z.flatten()
+    phi_flat = phi.flatten()
+    val_flat = val.flatten()
+
+    # 找到最大值索引
+    max_idx = np.nanargmax(val_flat)
+    max_R = R_flat[max_idx]
+    max_Z = Z_flat[max_idx]
+    max_phi = phi_flat[max_idx]
+    max_value = val_flat[max_idx]
+
+    # 计算重心 (忽略NaN)
+    centroid_R = np.nanmean(R_flat)
+    centroid_Z = np.nanmean(Z_flat)
+
+    # 计算从重心指向最大值的向量
+    vec_R = max_R - centroid_R
+    vec_Z = max_Z - centroid_Z
+    
+    # 适当向外延伸 (例如1.1倍距离)
+    scale = 1.1
+    plot_R = centroid_R + vec_R * scale
+    plot_Z = centroid_Z + vec_Z * scale
+
+    ax.scatter([plot_R], [max_phi], [plot_Z], color='red', s=40,
+               label=f'Max: {max_value:.2e}')
+    ax.legend()

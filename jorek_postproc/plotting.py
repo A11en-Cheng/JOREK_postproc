@@ -93,6 +93,7 @@ def plot_scatter_3d(
     # 设置坐标轴
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
     cbar.set_label(data.data_name, rotation=270, labelpad=15)
+    ax.set_aspect('equalxz')
     ax.set_xlabel('R Axis', fontsize=10)
     ax.set_ylabel('Phi Axis', fontsize=10)
     ax.set_zlabel('Z Axis', fontsize=10)
@@ -206,6 +207,7 @@ def plot_surface_3d(
         plot_max_point(R_plot, Z_plot, phi_plot, data_plot, ax)
     
     # 设置坐标轴
+    ax.set_aspect('equalxz')
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
     cbar.set_label(data.data_name, rotation=270, labelpad=15)
     ax.set_xlabel('R Axis', fontsize=10)

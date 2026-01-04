@@ -1,0 +1,13 @@
+Package: python3-jorek-postproc
+Source: jorek-postproc
+Version: 0.1.0-1
+Architecture: all
+Maintainer: None <None>
+Installed-Size: 123
+Depends: python3-matplotlib, python3-numpy, python3-scipy, python3:any
+Section: python
+Priority: optional
+Homepage: https://github.com/yourusername/jorek_postproc
+Description: JOREK后处理包 - 边界量可视化工具
+ # JOREK_postproc
+ This programme aims at postproc a JOREK output with various data processing methods and plotting measures.

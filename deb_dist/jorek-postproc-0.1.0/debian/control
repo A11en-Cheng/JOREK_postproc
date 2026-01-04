@@ -1,0 +1,16 @@
+Source: jorek-postproc
+Maintainer: None <None>
+Section: python
+Priority: optional
+Build-Depends: dh-python, python3-setuptools, python3-all, debhelper (>= 9)
+Standards-Version: 3.9.6
+Homepage: https://github.com/yourusername/jorek_postproc
+
+Package: python3-jorek-postproc
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: JOREK后处理包 - 边界量可视化工具
+ # JOREK_postproc
+ This programme aims at postproc a JOREK output with various data processing methods and plotting measures.
+ .
+

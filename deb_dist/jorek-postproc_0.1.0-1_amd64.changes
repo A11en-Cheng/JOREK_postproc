@@ -1,0 +1,26 @@
+Format: 1.8
+Date: Sun, 04 Jan 2026 15:49:58 +0800
+Source: jorek-postproc
+Binary: python3-jorek-postproc
+Built-For-Profiles: noudeb
+Architecture: all
+Version: 0.1.0-1
+Distribution: unstable
+Urgency: low
+Maintainer: None <None>
+Changed-By: None <None>
+Description:
+ python3-jorek-postproc - JOREK后处理包 - 边界量可视化工具
+Changes:
+ jorek-postproc (0.1.0-1) unstable; urgency=low
+ .
+   * source package automatically created by stdeb 0.10.0
+Checksums-Sha1:
+ e28cd2023238d548dbfac2c8720494ffa05c1383 6851 jorek-postproc_0.1.0-1_amd64.buildinfo
+ 83320cc7783fb4d1b24c0c4e356ff4ce54b4a4ea 24684 python3-jorek-postproc_0.1.0-1_all.deb
+Checksums-Sha256:
+ 5e131d0e70dc431012811ea6cfc1be6af49f572b7e08ca4e4d83423bc85ef5e7 6851 jorek-postproc_0.1.0-1_amd64.buildinfo
+ 761592b7f370b0ef9afe745ca4f6068d18628a1e4d1b83c0340f9e518b2477a7 24684 python3-jorek-postproc_0.1.0-1_all.deb
+Files:
+ c348359302ed0f4178934a561dd653ff 6851 python optional jorek-postproc_0.1.0-1_amd64.buildinfo
+ eb774f7aa9579cc47164d7edf32f8a25 24684 python optional python3-jorek-postproc_0.1.0-1_all.deb

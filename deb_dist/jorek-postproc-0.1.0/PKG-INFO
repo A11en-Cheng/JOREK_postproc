@@ -1,0 +1,31 @@
+Metadata-Version: 2.1
+Name: jorek_postproc
+Version: 0.1.0
+Summary: JOREK后处理包 - 边界量可视化工具
+Home-page: https://github.com/yourusername/jorek_postproc
+Author: Your Name
+Author-email: Allen Cheng <Allencheng@buaa.edu.cn>
+License: MIT
+Project-URL: Homepage, https://github.com/yourusername/jorek_postproc
+Project-URL: Documentation, https://jorek-postproc.readthedocs.io
+Project-URL: Repository, https://github.com/yourusername/jorek_postproc.git
+Project-URL: Issues, https://github.com/yourusername/jorek_postproc/issues
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Physics
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Provides-Extra: docs
+Provides-Extra: test
+License-File: LICENSE
+
+# JOREK_postproc
+This programme aims at postproc a JOREK output with various data processing methods and plotting measures.

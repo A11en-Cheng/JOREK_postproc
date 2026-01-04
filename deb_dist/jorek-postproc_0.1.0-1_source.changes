@@ -1,0 +1,29 @@
+Format: 1.8
+Date: Sun, 04 Jan 2026 15:49:58 +0800
+Source: jorek-postproc
+Built-For-Profiles: noudeb
+Architecture: source
+Version: 0.1.0-1
+Distribution: unstable
+Urgency: low
+Maintainer: None <None>
+Changed-By: None <None>
+Changes:
+ jorek-postproc (0.1.0-1) unstable; urgency=low
+ .
+   * source package automatically created by stdeb 0.10.0
+Checksums-Sha1:
+ 2c1ff9c8da7b0ebb89ff074adccf7fd2cc1504fe 923 jorek-postproc_0.1.0-1.dsc
+ 6ac57bfc564eb9a5b206e7162d5695540b1db089 52844 jorek-postproc_0.1.0.orig.tar.gz
+ b5d8908beda2604946ad737fe2472ff47f350f44 976 jorek-postproc_0.1.0-1.debian.tar.xz
+ 520921410076d4b4ed2d36e64a444e70264a3a27 6781 jorek-postproc_0.1.0-1_source.buildinfo
+Checksums-Sha256:
+ 335b33994f4849fd901dfd68071365ebe4345b72d8ca3d42b46a5f489d988e79 923 jorek-postproc_0.1.0-1.dsc
+ 3574752d2944888e12e3a08e37bb575a865662702ad64360b0d6c5562361ad9a 52844 jorek-postproc_0.1.0.orig.tar.gz
+ b46d514307d5762965f4bfc8531a0c69e310cf01b8e315a5076339d648b5097f 976 jorek-postproc_0.1.0-1.debian.tar.xz
+ 517bdadc3ad337211d68f192434f656dc69df63b30407bdb3493c31e4c7f26f3 6781 jorek-postproc_0.1.0-1_source.buildinfo
+Files:
+ c0157dfd41b634ca124fb8c8832c0887 923 python optional jorek-postproc_0.1.0-1.dsc
+ 85d4ada5d1f805d1423774ba162e1546 52844 python optional jorek-postproc_0.1.0.orig.tar.gz
+ 8d9d25390205e2b1b64e967f1476cd87 976 python optional jorek-postproc_0.1.0-1.debian.tar.xz
+ 4fc836c2b30b98abdec85ce5c64b0adc 6781 python optional jorek-postproc_0.1.0-1_source.buildinfo

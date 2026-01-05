@@ -6,169 +6,129 @@ supporting easy extension with new devices.
 """
 
 import numpy as np
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Callable, Optional, Type
+from abc import ABC, abstractmethod
 from .data_models import DeviceGeometry
 
-
-def create_mask_exl50u(
-    R: np.ndarray,
-    Z: np.ndarray,
-    debug: bool = False
-) -> Tuple[Dict[str, np.ndarray], Dict[str, Tuple[int, int]]]:
+class BaseDevice(ABC):
     """
-    为EXL50-U位形创建各个位置的掩膜。
-
-    Parameters
-    ----------
-    R : numpy.ndarray
-        R坐标网格，形状为 (N_phi, N_poloidal)
-    Z : numpy.ndarray
-        Z坐标网格，形状为 (N_phi, N_poloidal)
-    debug : bool, optional
-        调试模式标志
-
-    Returns
-    -------
-    masks : dict
-        位置掩膜字典，键为位置标识
-    angles : dict
-        对应位置的推荐观看角度
+    Abstract base class for device definitions.
     """
-    masks = {
-        'mask_UO': (R >= 0.6) & (R <= 1.1) & (Z >= 1.0) & (Z <= 1.6),
-        'mask_LO': (R >= 0.6) & (R <= 1.1) & (Z <= -1.0) & (Z >= -1.6),
-        'mask_UI': (R >= 0.3) & (R <= 0.6) & (Z <= 1.2) & (Z >= 0.75),
-        'mask_LI': (R >= 0.3) & (R <= 0.6) & (Z <= -0.75) & (Z >= -1.2),
-    }
-    
-    angles = {
-        'mask_UO': (44, 15),    # Upper Outer
-        'mask_LO': (-44, -15),  # Lower Outer
-        'mask_UI': (24, 168),   # Upper Inner
-        'mask_LI': (-24, -168), # Lower Inner
-    }
-    
-    if debug:
-        print("[Geometry] Created EXL50-U device masks")
-    
-    return masks, angles
+    name: str
+    default_xpoints: Optional[np.ndarray] = None
 
+    @abstractmethod
+    def get_masks_and_angles(
+        self, 
+        R: np.ndarray, 
+        Z: np.ndarray, 
+        debug: bool = False
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Tuple[int, int]]]:
+        """
+        Generate masks and view angles for the device.
+        """
+        pass
 
-def create_mask_iter(
-    R: np.ndarray,
-    Z: np.ndarray,
-    debug: bool = False
-) -> Tuple[Dict[str, np.ndarray], Dict[str, Tuple[int, int]]]:
+class EXL50UDevice(BaseDevice):
+    name = "EXL50U"
+    # Default X-points for EXL50-U: [R1, Z1], [R2, Z2]
+    default_xpoints = np.array([
+        [0.73, 0.877], 
+        [0.75, -0.8]
+    ])
+
+    def get_masks_and_angles(self, R, Z, debug=False):
+        masks = {
+            'mask_UO': (R >= 0.6) & (R <= 1.1) & (Z >= 1.0) & (Z <= 1.6),
+            'mask_LO': (R >= 0.6) & (R <= 1.1) & (Z <= -1.0) & (Z >= -1.6),
+            'mask_UI': (R >= 0.3) & (R <= 0.6) & (Z <= 1.2) & (Z >= 0.75),
+            'mask_LI': (R >= 0.3) & (R <= 0.6) & (Z <= -0.75) & (Z >= -1.2),
+        }
+        
+        angles = {
+            'mask_UO': (44, 15),    # Upper Outer
+            'mask_LO': (-44, -15),  # Lower Outer
+            'mask_UI': (24, 168),   # Upper Inner
+            'mask_LI': (-24, -168), # Lower Inner
+        }
+        
+        if debug:
+            print("[Geometry] Created EXL50-U device masks")
+        return masks, angles
+
+class ITERDevice(BaseDevice):
+    name = "ITER"
+    default_xpoints = None # ITER might not need default xpoints or they are different
+
+    def get_masks_and_angles(self, R, Z, debug=False):
+        masks = {
+            'mask_UO': (R >= 3.0) & (R <= 3.5) & (Z >= 2.5) & (Z <= 3.0),
+            'mask_LO': (R >= 3.0) & (R <= 3.5) & (Z <= -2.4) & (Z >= -3.0),
+            'mask_UI': (R >= 2.2) & (R <= 2.5) & (Z <= 2.8) & (Z >= 2.3),
+            'mask_LI': (R >= 2.2) & (R <= 2.5) & (Z <= -2.0) & (Z >= -2.8),
+        }
+        
+        angles = {
+            'mask_UO': (40, 45),     # Upper Outer
+            'mask_LO': (-40, -45),   # Lower Outer
+            'mask_UI': (24, 150),    # Upper Inner
+            'mask_LI': (-20, -150),  # Lower Inner
+        }
+        
+        if debug:
+            print("[Geometry] Created ITER device masks")
+        return masks, angles
+
+# Registry for devices
+_DEVICE_REGISTRY: Dict[str, BaseDevice] = {
+    'EXL50U': EXL50UDevice(),
+    'ITER': ITERDevice(),
+}
+
+def get_device_instance(device_name: str) -> BaseDevice:
     """
-    为ITER位形创建各个位置的掩膜。
-
-    Parameters
-    ----------
-    R : numpy.ndarray
-        R坐标网格
-    Z : numpy.ndarray
-        Z坐标网格
-    debug : bool, optional
-        调试模式标志
-
-    Returns
-    -------
-    masks : dict
-        位置掩膜字典
-    angles : dict
-        对应位置的推荐观看角度
+    Get the device instance by name.
     """
-    masks = {
-        'mask_UO': (R >= 3.0) & (R <= 3.5) & (Z >= 2.5) & (Z <= 3.0),
-        'mask_LO': (R >= 3.0) & (R <= 3.5) & (Z <= -2.4) & (Z >= -3.0),
-        'mask_UI': (R >= 2.2) & (R <= 2.5) & (Z <= 2.8) & (Z >= 2.3),
-        'mask_LI': (R >= 2.2) & (R <= 2.5) & (Z <= -2.0) & (Z >= -2.8),
-    }
-    
-    angles = {
-        'mask_UO': (40, 45),     # Upper Outer
-        'mask_LO': (-40, -45),   # Lower Outer
-        'mask_UI': (24, 150),    # Upper Inner
-        'mask_LI': (-20, -150),  # Lower Inner
-    }
-    
-    if debug:
-        print("[Geometry] Created ITER device masks")
-    
-    return masks, angles
-
+    device_name_upper = device_name.upper()
+    if device_name_upper in _DEVICE_REGISTRY:
+        return _DEVICE_REGISTRY[device_name_upper]
+    else:
+        raise ValueError(f"Unknown device: {device_name}. Supported: {list(_DEVICE_REGISTRY.keys())}")
 
 def get_device_geometry(
     device_name: str,
     R: np.ndarray,
     Z: np.ndarray,
+    xpoints: Optional[np.ndarray] = None,
     debug: bool = False
 ) -> DeviceGeometry:
     """
-    根据设备名称获取对应的几何信息。
-
-    Parameters
-    ----------
-    device_name : str
-        设备名称 ('EXL50U', 'ITER', 等)
-    R : numpy.ndarray
-        R坐标网格
-    Z : numpy.ndarray
-        Z坐标网格
-    debug : bool, optional
-        调试模式标志
-
-    Returns
-    -------
-    geometry : DeviceGeometry
-        设备几何信息对象
-
-    Raises
-    ------
-    ValueError
-        如果设备名称不被支持
+    Get DeviceGeometry data object (backward compatibility wrapper).
     """
-    device_name_upper = device_name.upper()
+    device = get_device_instance(device_name)
     
-    if device_name_upper == 'EXL50U':
-        masks, angles = create_mask_exl50u(R, Z, debug=debug)
-    elif device_name_upper == 'ITER':
-        masks, angles = create_mask_iter(R, Z, debug=debug)
+    # Use provided xpoints or default from device
+    final_xpoints = xpoints if xpoints is not None else device.default_xpoints
+    
+    # Generate masks if R and Z are provided
+    if R is not None and Z is not None:
+        masks, angles = device.get_masks_and_angles(R, Z, debug)
     else:
-        raise ValueError(f"Unknown device: {device_name}. Supported devices: EXL50U, ITER")
-    
+        masks, angles = {}, {}
+        
     return DeviceGeometry(
-        name=device_name_upper,
+        name=device.name,
         masks=masks,
-        view_angles=angles
+        view_angles=angles,
+        xpoints=final_xpoints
     )
-
 
 def register_custom_device(
     device_name: str,
-    mask_func: callable
+    device_class: Type[BaseDevice]
 ) -> None:
     """
-    注册自定义设备位形。
-
-    这个函数可以用来为新的设备定义位形。
-
-    Parameters
-    ----------
-    device_name : str
-        设备名称
-    mask_func : callable
-        掩膜生成函数，签名为 (R, Z, debug) -> (masks_dict, angles_dict)
-
-    Examples
-    --------
-    >>> def my_device_masks(R, Z, debug=False):
-    ...     masks = {'mask_1': R > 1.0}
-    ...     angles = {'mask_1': (30, 45)}
-    ...     return masks, angles
-    >>> register_custom_device('MYDEVICE', my_device_masks)
+    Register a custom device class.
     """
-    # 动态添加到模块级别 - 这是一个简化的实现
-    # 实际项目可能需要更复杂的注册机制
-    if debug:
-        print(f"[Geometry] Custom device '{device_name}' registered")
+    _DEVICE_REGISTRY[device_name.upper()] = device_class()
+    print(f"[Geometry] Custom device '{device_name}' registered")

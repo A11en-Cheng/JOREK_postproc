@@ -62,8 +62,9 @@ __all__ = [
     
     # 几何模块
     'get_device_geometry',
-    'create_mask_exl50u',
-    'create_mask_iter',
+    'get_device_instance',
+    'register_custom_device',
+    'BaseDevice',
     
     # 绘图模块
     'plot_scatter_3d',
@@ -92,8 +93,9 @@ from .processing import (
 )
 from .geometry import (
     get_device_geometry,
-    create_mask_exl50u,
-    create_mask_iter,
+    get_device_instance,
+    register_custom_device,
+    BaseDevice
 )
 from .plotting import plot_scatter_3d, plot_surface_3d
 from .config import ProcessingConfig, parse_args, create_debug_config

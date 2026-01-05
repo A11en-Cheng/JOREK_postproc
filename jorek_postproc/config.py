@@ -6,7 +6,8 @@ import argparse
 from typing import List, Optional, Tuple
 from dataclasses import dataclass, field
 import sys
-
+from jorek_postproc import get_device_geometry
+import numpy as np
 
 @dataclass
 class ProcessingConfig:
@@ -190,7 +191,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--debug",
         action='store_true',
-        default=False,
+        default=True,
         help="启用调试模式"
     )
     
@@ -234,8 +235,18 @@ def parse_args(args=None) -> ProcessingConfig:
     # 处理xpoints
     xpoints = None
     if parsed.xpoints is not None:
-        import numpy as np
         xpoints = np.array(parsed.xpoints, dtype=float).reshape(2, -1)
+    elif parsed.device is not None:
+        # 根据设备设置默认xpoints
+        try:
+            # 使用 get_device_geometry 获取默认 xpoints，传入 None 作为 R, Z
+            # 这样不会触发掩膜生成，只返回静态信息
+            device_geom = get_device_geometry(parsed.device, None, None, debug=parsed.debug)
+            xpoints = device_geom.xpoints
+        except Exception as e:
+            if parsed.debug:
+                print(f"[Config] Failed to get default xpoints for {parsed.device}: {e}")
+            xpoints = None
     
     return ProcessingConfig(
         file_path=parsed.file,
@@ -268,7 +279,7 @@ def create_debug_config() -> ProcessingConfig:
     """
     return ProcessingConfig(
         file_path='/home/ac_desktop/syncfiles/postproc_145/boundary_quantities_s04200.dat',
-        timesteps=['4200'],
+        timesteps=['4200', '2200', '3600', '4650', '5720'],
         iplane=1080,
         data_name='heatF_tot_cd',
         device='EXL50U',
@@ -281,6 +292,6 @@ def create_debug_config() -> ProcessingConfig:
         output_dir=None,
         xpoints=None,
         debug=True,
-        energy_impact=False,
+        energy_impact=True,
         save_convolution=False
     )

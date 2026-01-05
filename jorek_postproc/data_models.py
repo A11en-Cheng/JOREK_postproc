@@ -82,10 +82,13 @@ class DeviceGeometry:
         位形掩膜字典，键为位置标识 (e.g., 'mask_UO', 'mask_LI')
     view_angles : Dict[str, Tuple[int, int]]
         对应位置的推荐观看角度 (elevation, azimuth)
+    xpoints : Optional[np.ndarray] = None
+        X点坐标数组
     """
     name: str
     masks: Dict[str, np.ndarray]
     view_angles: Dict[str, Tuple[int, int]]
+    xpoints: Optional[np.ndarray] = None
 
 
 @dataclass

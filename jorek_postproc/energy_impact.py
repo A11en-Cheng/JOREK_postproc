@@ -17,14 +17,28 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from matplotlib.colors import LogNorm
 from tqdm import tqdm
 
+# Numpy 2.0 compatibility
+if hasattr(np, 'trapz'):
+    trapz = np.trapz
+else:
+    trapz = np.trapezoid
 
-from . import read_boundary_file, reshape_to_grid, plot_surface_3d, plot_scatter_3d, PlottingConfig
+
+from . import (
+    read_boundary_file, 
+    reshape_to_grid, 
+    plot_surface_3d, 
+    plot_scatter_3d, 
+    PlottingConfig,
+    get_device_geometry
+)
 
 # 常量定义
 MAX_WORKERS = os.cpu_count() or 8
 CHUNK_SIZE = 108
 INTEGRATION_POINTS = 100
 INTERP_POINTS = 2000
+BATCH_SIZE = 5000 
 
 def _worker_wrapper(args: Tuple[str, Callable, Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -37,32 +51,50 @@ def _worker_wrapper(args: Tuple[str, Callable, Dict[str, Any]]) -> Dict[str, Any
         print(f"Error processing {filename}: {e}")
         return {'filename': filename, 'error': str(e), 'time': np.nan}
 
-def compute_delta_q(t_raw, q_raw, t_eval, n_points=INTEGRATION_POINTS):
-    """向量化计算delta_q (能量冲击卷积)"""
-    if t_raw.size == 0 or q_raw.size == 0:
-        return np.zeros_like(t_eval)
+def compute_delta_q_batch(t_raw, q_raw_batch, t_eval, n_points=INTEGRATION_POINTS):
+    """
+    向量化计算一批像素的delta_q
+    q_raw_batch: (n_pixels, n_raw_time)
+    Returns: (n_pixels, n_eval_time)
+    """
+    n_pixels = q_raw_batch.shape[0]
+    n_eval = len(t_eval)
     
-    # 创建插值函数
+    if t_raw.size == 0 or q_raw_batch.size == 0:
+        return np.zeros((n_pixels, n_eval), dtype=np.float32)
+    
+    # 为整批数据创建一个插值函数
+    # axis=-1 表示沿着最后一个维度（时间）插值
     interp_func = interp1d(
-        t_raw, q_raw, kind='linear',
-        bounds_error=False, fill_value=(q_raw[0], q_raw[-1]))
+        t_raw, q_raw_batch, kind='linear', axis=-1,
+        bounds_error=False, fill_value=(q_raw_batch[:, 0], q_raw_batch[:, -1]),
+        assume_sorted=True
+    )
     
-    # 预计算u_max数组
-    u_max = np.sqrt(np.maximum(t_eval - t_raw[0], 0))
-    valid_mask = u_max > 1e-10
+    delta_q_batch = np.zeros((n_pixels, n_eval), dtype=np.float32)
     
-    delta_q = np.zeros_like(t_eval)
+    # 预计算所有时刻的积分上限 u_max
+    u_max_all = np.sqrt(np.maximum(t_eval - t_raw[0], 0))
     
-    for i, valid in enumerate(valid_mask):
-        if not valid:
+    # 遍历评估时间点 (2000次循环)
+    # 内部操作是对 n_pixels (如5000个) 的向量化操作，效率很高
+    for k in range(n_eval):
+        u_m = u_max_all[k]
+        if u_m <= 1e-10:
             continue
-        u_array = np.linspace(0, u_max[i], n_points)
-        tau_array = t_eval[i] - u_array**2
-        q_array = interp_func(tau_array)
-        integral = np.trapz(q_array, u_array)
-        delta_q[i] = 2 * integral
+            
+        u_array = np.linspace(0, u_m, n_points) # (n_points,)
+        tau_array = t_eval[k] - u_array**2      # (n_points,)
         
-    return delta_q
+        # 插值: 结果形状 (n_pixels, n_points)
+        q_vals = interp_func(tau_array)
+        
+        # 积分: 沿着 n_points 维度积分 -> (n_pixels,)
+        integral = trapz(q_vals, u_array, axis=-1)
+        
+        delta_q_batch[:, k] = 2 * integral
+        
+    return delta_q_batch
 
 def load_timestep_data(args):
     """单个时间步数据加载任务"""
@@ -146,10 +178,13 @@ def run_energy_impact_analysis(conf):
     
     ref_grid_data = None # 用于存储网格信息(R, Z)
     tss = np.array(conf.timesteps,dtype=int)
+    tss.sort()
     
     for ts in tss:
         tasks.append((ts, base_dir, conf.iplane, conf.data_name, xpoints, conf.debug))
         
+    # 假设时间单位转换，如果config里没有定义，默认使用 4.1006e-4
+    time_factor = getattr(conf, 'time_factor', 4.1006e-4)
         
     with ProcessPoolExecutor(max_workers=min(MAX_WORKERS, len(tasks))) as executor:
         futures = [executor.submit(load_timestep_data, task) for task in tasks]
@@ -162,15 +197,21 @@ def run_energy_impact_analysis(conf):
                 if ref_grid_data is None:
                     ref_grid_data = g_data
                 
-                # 假设时间单位转换，如果config里没有定义，默认使用 4.1006e-4
-                time_factor = getattr(conf, 'time_factor', 4.1006e-4)
                 key = ts*time_factor
                 data_set[key] = g_data.data.astype(np.float32)
     
     if not data_set:
         print("❌ 未加载到任何数据，终止。")
         return
-    print(data_set.keys(), len(data_set))
+    
+    # 确保t=0时刻有数据 (参考energy_impact_new_copy.py)
+    # 如果最小时间远大于0，插入0时刻的全0数据，保证积分从0开始
+    min_t = min(data_set.keys())
+    if min_t > 1e-6:
+        print(f"  ⚠ 检测到起始时间 {min_t:.4e} > 0，自动补充 t=0 时刻的零数据以修正积分下限。")
+        sample_shape = next(iter(data_set.values())).shape
+        data_set[0.0] = np.zeros(sample_shape, dtype=np.float32)
+
     # 2. 准备时间插值
     t_raw = np.sort(np.array(list(data_set.keys())))
     t_eval = np.linspace(t_raw.min(), t_raw.max(), INTERP_POINTS)
@@ -188,85 +229,162 @@ def run_energy_impact_analysis(conf):
     
     # 3. 并行计算卷积
     print(f"[EnergyImpact] 开始计算卷积积分 (Workers: {MAX_WORKERS})...")
-    calc_tasks = []
-    for i in range(n_rows):
-        for j in range(n_cols):
-            q_raw = np.array([data_set[t][i, j] for t in t_raw])
-            calc_tasks.append((i, j, t_raw, q_raw, t_eval))
-            
-    total_chunks = (len(calc_tasks) + CHUNK_SIZE - 1) // CHUNK_SIZE
     
-    # 分块处理以节省内存
-    chunk_iter = range(0, len(calc_tasks), CHUNK_SIZE)
-    for chunk_idx in tqdm(chunk_iter, total=total_chunks, desc="Calculating Convolution"):
-        chunk = calc_tasks[chunk_idx:chunk_idx + CHUNK_SIZE]
-        with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures = {executor.submit(compute_delta_q, t, q, te): (i, j) 
-                      for i, j, t, q, te in chunk}
+    # 优化：构建3D数组 (Time, R, Z) -> (R*Z, Time) 以进行批处理
+    n_timesteps = len(t_raw)
+    
+    # 1. 构建 (Time, R, Z)
+    all_data_3d = np.zeros((n_timesteps, n_rows, n_cols), dtype=np.float32)
+    for k, t in enumerate(t_raw):
+        all_data_3d[k] = np.maximum(data_set[t], 0.0)
+    
+    # 2. 转换为 (N_pixels, Time)
+    # transpose to (R, Z, Time) then reshape
+    all_data_flat = all_data_3d.transpose(1, 2, 0).reshape(-1, n_timesteps)
+    del all_data_3d # 释放内存
+    
+    n_total_pixels = all_data_flat.shape[0]
+    
+    # 3. 创建任务分块
+    # 增加块大小以充分利用向量化优势，减少进程间通信开销
+    # 假设每个像素2000个点，每个点4字节，10000个像素约80MB数据
+    
+    
+    pixel_indices = np.arange(n_total_pixels)
+    chunks = []
+    for i in range(0, n_total_pixels, BATCH_SIZE):
+        end_idx = min(i + BATCH_SIZE, n_total_pixels)
+        # 提取该批次的数据
+        batch_data = all_data_flat[i:end_idx, :]
+        chunks.append((i, end_idx, t_raw, batch_data, t_eval))
             
-            for future in as_completed(futures):
-                i, j = futures[future]
-                try:
-                    dq = future.result()
-                    DQ[i, j, :] = dq
-                except Exception as e:
-                    pass
+    total_chunks = len(chunks)
+    print(f"  总像素数: {n_total_pixels}, 分块数: {total_chunks}, 每块大小: {BATCH_SIZE}")
+    
+    # 4. 并行执行
+    # DQ 形状 (R, Z, Time) -> Flattened (R*Z, Time)
+    DQ_flat = np.zeros((n_total_pixels, len(t_eval)), dtype=np.float32)
+    
+    with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        # 提交所有任务
+        futures = {
+            executor.submit(compute_delta_q_batch, t_raw, batch_data, t_eval): (start, end)
+            for start, end, t_raw, batch_data, t_eval in chunks
+        }
         
-        gc.collect()
+        for future in tqdm(as_completed(futures), total=total_chunks, desc="Calculating Convolution"):
+            start, end = futures[future]
+            try:
+                batch_result = future.result()
+                DQ_flat[start:end, :] = batch_result
+            except Exception as e:
+                print(f"Chunk {start}-{end} failed: {e}")
+                
+    # 5. 重塑回 (R, Z, Time)
+    DQ = DQ_flat.reshape(n_rows, n_cols, len(t_eval))
+    del DQ_flat, all_data_flat # 释放内存
+    gc.collect()
 
-    # 4. 保存结果 (可选)
-    if getattr(conf, 'save_convolution', False):
-        save_path = os.path.join(output_dir, 'convolution_result.npz')
+    # 4. 保存结果 (强制保存完整DQ，参考energy_impact_new_copy.py)
+    # 即使config没开，为了诊断也建议保存，或者遵循config但默认True
+    if getattr(conf, 'save_convolution', True):
+        save_path = os.path.join(output_dir, 'DQ_full_data.npz')
         np.savez_compressed(save_path, DQ=DQ, t_eval=t_eval, t_raw=t_raw)
-        print(f"[EnergyImpact] 原始数据已保存至 {save_path}")
+        print(f"[EnergyImpact] 完整DQ数据已保存至 {save_path}")
 
-    # 5. 生成最大值分布图
-    print(f"[EnergyImpact] 生成3D图像...")
-    # 计算每个点在所有时间上的最大值
-    max_impact = np.max(DQ, axis=2)
+    # 5. 生成3D图像 (针对每个输入的时间步)
+    print(f"[EnergyImpact] 生成3D图像 (共 {len(conf.timesteps)} 帧)...")
     
     if ref_grid_data is not None:
-        # 更新数据为最大能量冲击
-        ref_grid_data.data = max_impact
-        print(max_impact.min(), max_impact.max())
-        # 配置绘图参数
+        # 获取装置几何
+        print(f"[EnergyImpact] 获取装置位形 ({conf.device})...")
+        try:
+            device = get_device_geometry(conf.device, ref_grid_data.R, ref_grid_data.Z, xpoints=xpoints, debug=conf.debug)
+            print(f"  ✓ 装置：{device.name}")
+            print(f"  ✓ 位置：{list(device.masks.keys())}")
+        except Exception as e:
+            print(f"  ✗ 获取位形失败：{e}")
+            return
+
+        # 计算全局极值用于统一色标
+        global_max = np.nanmax(DQ)
+        global_min = np.nanmin(DQ)
+        
+        # 确定绘图范围
+        if conf.data_limits:
+            vmin, vmax = conf.data_limits
+        else:
+            vmin = global_min
+            vmax = global_max
+            # 对数坐标下避免0
+            if conf.log_norm and vmin <= 0:
+                vmin = max(1e-3, vmax * 1e-4)
+        
+        print(f"  绘图范围: [{vmin:.2e}, {vmax:.2e}]")
+
         plotting_config = PlottingConfig(
             log_norm=conf.log_norm,
-            cmap='inferno', # 能量图通常用热图
+            cmap='viridis', # 能量图通常用热图
             dpi=300,
-            data_limits=[max(np.nanmin(max_impact), 1e-5), np.nanmax(max_impact)],
+            data_limits=[vmin, vmax],
             find_max=conf.find_max
         )
         
-        try:
-            fig = plt.figure(figsize=(12, 10), dpi=150)
-            ax = fig.add_subplot(111, projection='3d')
+        # 对输入的时间步进行排序处理
+        sorted_timesteps = sorted([float(ts) for ts in conf.timesteps])
+        
+        for ts_val in tqdm(sorted_timesteps, desc="Plotting 3D"):
+            t_phys = ts_val * time_factor
             
-            save_path = os.path.join(output_dir, 'max_energy_impact_3d.png')
+            # 在t_eval中寻找最近的时间点索引
+            idx = np.abs(t_eval - t_phys).argmin()
             
-            plot_surface_3d(
-                ref_grid_data, fig, ax, 
-                config=plotting_config,
-                view_angle=(30, 45),
-                save_path=save_path,
-                debug=conf.debug
-            )
-            plt.close(fig)
-            print(f"  ✓ 3D表面图已保存: {save_path}")
+            # 获取对应时刻的DQ切片
+            dq_slice = DQ[:, :, idx]
             
-        except Exception as e:
-            print(f"  ✗ 3D绘图失败: {e}")
-            if conf.debug:
-                import traceback
-                traceback.print_exc()
-    
-    # 保留2D投影图作为参考
-    plt.figure(figsize=(10, 8))
-    plt.imshow(max_impact.T, origin='lower', cmap='inferno', aspect='auto')
-    plt.colorbar(label='Max Energy Impact')
-    plt.title(f'Maximum Energy Impact over {t_eval[0]:.4f}-{t_eval[-1]:.4f}')
-    plt.savefig(os.path.join(output_dir, 'max_energy_impact_2d.png'), dpi=300)
-    plt.close()
+            # 更新数据对象
+            ref_grid_data.data = dq_slice
+            
+            # 1. 绘制整体视图 (Front/Back)
+            for view_name, angle in [('front', (30, 30)), ('back', (30, 210))]:
+                fname = f'energy_impact_{t_phys:.5f}s_ts{int(ts_val)}_overall_{view_name}.png'
+                save_path = os.path.join(output_dir, fname)
+                
+                try:
+                    fig = plt.figure(figsize=(10, 8), dpi=150)
+                    ax = fig.add_subplot(111, projection='3d')
+                    
+                    plot_surface_3d(
+                        ref_grid_data, fig, ax, 
+                        config=plotting_config,
+                        view_angle=angle,
+                        save_path=save_path,
+                        debug=conf.debug
+                    )
+                    plt.close(fig)
+                except Exception as e:
+                    print(f"  ✗ 绘图失败 {fname}: {e}")
+
+            # 2. 绘制部件视图 (Masked: UO, UI, LO, LI etc.)
+            for mask_name, mask in device.masks.items():
+                angle = device.view_angles.get(mask_name, (30, 45))
+                fname = f'energy_impact_{t_phys:.5f}s_ts{int(ts_val)}_{mask_name}.png'
+                save_path = os.path.join(output_dir, fname)
+                
+                try:
+                    fig = plt.figure(figsize=(10, 8), dpi=150)
+                    ax = fig.add_subplot(111, projection='3d')
+                    
+                    plot_surface_3d(
+                        ref_grid_data, fig, ax, 
+                        config=plotting_config,
+                        mask=mask,
+                        view_angle=angle,
+                        save_path=save_path,
+                        debug=conf.debug
+                    )
+                    plt.close(fig)
+                except Exception as e:
+                    print(f"  ✗ 绘图失败 {fname}: {e}")
     
     print(f"✓ 处理完成，结果保存在: {output_dir}")
-

@@ -97,7 +97,7 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
         # 获取装置几何
         print(f"\n[4/4] 获取装置位形...")
         try:
-            device = get_device_geometry(conf.device, grid_data.R, grid_data.Z, debug=conf.debug)
+            device = get_device_geometry(conf.device, grid_data.R, grid_data.Z, xpoints=xpoints, debug=conf.debug)
             print(f"  ✓ 装置：{device.name}")
             print(f"  ✓ 位置：{list(device.masks.keys())}")
         except Exception as e:
@@ -206,17 +206,23 @@ def main():
     主函数
     """
     try:
-        # 解析命令行参数
-        conf = cfg.parse_args()
+        INTERACTIVE_DEBUG = False
         
-        if conf.debug:
-            print(f"[DEBUG] 配置信息：")
-            print(f"  文件：{conf.file_path}")
-            print(f"  时间步：{conf.timesteps}")
-            print(f"  iplane：{conf.iplane}")
-            print(f"  数据：{conf.data_name}")
-            print(f"  设备：{conf.device}")
-            print(f"  绘图模式：{'表面图' if conf.plot_surface else '散点图'}")
+        if INTERACTIVE_DEBUG:
+            print("[DEBUG] 使用调试配置")
+            conf = cfg.create_debug_config()
+        else:
+        # 解析命令行参数
+            conf = cfg.parse_args()
+            
+            if conf.debug:
+                print(f"[DEBUG] 配置信息：")
+                print(f"  文件：{conf.file_path}")
+                print(f"  时间步：{conf.timesteps}")
+                print(f"  iplane：{conf.iplane}")
+                print(f"  数据：{conf.data_name}")
+                print(f"  设备：{conf.device}")
+                print(f"  绘图模式：{'表面图' if conf.plot_surface else '散点图'}")
         
         # 处理数据
         if not conf.energy_impact:

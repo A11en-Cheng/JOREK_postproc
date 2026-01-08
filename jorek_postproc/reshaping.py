@@ -53,7 +53,10 @@ def reshape_to_grid(
     
     # 1. 解析列名对应关系
     r_col_name, z_col_name, phi_col_name, val_col_name = names
-    
+    if debug:
+        print(f"[Reshaping] Mapping columns: R='{r_col_name}', Z='{z_col_name}', phi='{phi_col_name}', value='{val_col_name}'")
+        print(f"[Reshaping] Input block shape: {block.shape}")
+        print(f"[Reshaping] Using iplane={iplane}, xpoints={'provided' if xpoints is not None else 'not provided'}")
     try:
         r_idx = col_names.index(r_col_name)
         z_idx = col_names.index(z_col_name)
@@ -62,6 +65,8 @@ def reshape_to_grid(
     except ValueError as e:
         raise ValueError(f"Column name mismatch: {e}")
 
+    if debug:
+        print(f"[Reshaping] Column indices: R={r_idx}, Z={z_idx}, phi={phi_idx}, value={val_idx}")
     # 提取原始一维数据
     R_raw = block[:, r_idx]
     Z_raw = block[:, z_idx]
@@ -71,6 +76,7 @@ def reshape_to_grid(
     # 2. 识别唯一的 Phi 切面 (Toroidal Planes)
     unique_phi = np.unique(np.round(phi_raw, 5))
     unique_phi.sort()
+    # unique_phi = unique_phi - unique_phi[0]  # 使第一个切面为0
     
     n_phi = len(unique_phi)
     if debug:
@@ -88,6 +94,9 @@ def reshape_to_grid(
         # 3.1 提取当前切面的所有点
         mask = np.abs(phi_raw - current_phi) < 1e-4
         
+        if debug:
+            print(f"[Reshaping] Processing phi={current_phi:.5f} with {np.sum(mask)} points.")
+        
         if xpoints is not None:
             # X点分段排序（用于双X点撕裂模）
             c_rup, c_zup = xpoints[1, :]
@@ -99,6 +108,7 @@ def reshape_to_grid(
             z_slice_up = Z_raw[mask][mask_xpt_up]
             r_slice_dn = R_raw[mask][mask_xpt_dn]
             z_slice_dn = Z_raw[mask][mask_xpt_dn]
+            
             
             angles_up = np.arctan2(z_slice_up - c_zup, r_slice_up - c_rup)
             angles_dn = np.arctan2(z_slice_dn - c_zdn, r_slice_dn - c_rdn)

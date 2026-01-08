@@ -33,8 +33,8 @@ class EXL50UDevice(BaseDevice):
     name = "EXL50U"
     # Default X-points for EXL50-U: [R1, Z1], [R2, Z2]
     default_xpoints = np.array([
-        [0.73, 0.877], 
-        [0.75, -0.8]
+        [0.72, 0.877], 
+        [0.72, -0.877]
     ])
 
     def get_masks_and_angles(self, R, Z, debug=False):

@@ -191,7 +191,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--debug",
         action='store_true',
-        default=True,
+        default=False,
         help="启用调试模式"
     )
     
@@ -233,7 +233,7 @@ def parse_args(args=None) -> ProcessingConfig:
     plot_surface = not parsed.plot_scatter
     
     # 处理xpoints
-    xpoints = None
+    xpoints = []
     if parsed.xpoints is not None:
         xpoints = np.array(parsed.xpoints, dtype=float).reshape(2, -1)
     elif parsed.device is not None:
@@ -278,19 +278,19 @@ def create_debug_config() -> ProcessingConfig:
         调试配置对象
     """
     return ProcessingConfig(
-        file_path='/home/ac_desktop/syncfiles/postproc_145/boundary_quantities_s04200.dat',
-        timesteps=['4200', '2200', '3600', '4650', '5720'],
-        iplane=1080,
-        data_name='heatF_tot_cd',
+        file_path='/home/ac_desktop/syncfiles/postproc_152_new/boundary_quantities_s05000.dat',
+        timesteps=['5000', '6000'],
+        iplane=32,
+        data_name='heatF_total',
         device='EXL50U',
-        data_limits=[1e5, 3e8],
+        data_limits=[1e5, 3e9],
         norm_factor=4.1006E-07,
         plot_surface=True,
         plot_overall=False,
         log_norm=True,
         find_max=False,
         output_dir=None,
-        xpoints=None,
+        xpoints= [0.73,  -0.877, 0.73,   0.877],
         debug=True,
         energy_impact=True,
         save_convolution=False

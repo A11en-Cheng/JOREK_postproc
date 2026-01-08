@@ -249,16 +249,17 @@ def plot_max_point(R, Z, phi, val, ax):
     # 计算重心 (忽略NaN)
     centroid_R = np.nanmean(R_flat)
     centroid_Z = np.nanmean(Z_flat)
-
+    centroid_R = 0.8
+    centroid_Z = 0.0
     # 计算从重心指向最大值的向量
     vec_R = max_R - centroid_R
     vec_Z = max_Z - centroid_Z
     
     # 适当向外延伸 (例如1.1倍距离)
-    scale = 1.1
+    scale = 1.01
     plot_R = centroid_R + vec_R * scale
     plot_Z = centroid_Z + vec_Z * scale
 
     ax.scatter([plot_R], [max_phi], [plot_Z], color='red', s=40,
                label=f'Max: {max_value:.2e}')
-    ax.legend()
+    #ax.legend()

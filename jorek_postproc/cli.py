@@ -48,7 +48,10 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
         return
     
     print(f"  ✓ 成功读取，列数：{len(col_names)}，块数：{len(blocks)}")
-    
+    non_zero_mask = ~np.all(np.isclose(blocks, 0.0), axis=1)
+    if np.sum(~non_zero_mask) > 0:
+        if conf.debug: print(f"  [Worker] 丢弃 {np.sum(~non_zero_mask)} 行全零数据")
+        blocks = blocks[non_zero_mask]
     # 2. 处理每个时间步
     for ts in conf.timesteps:
         ts_str = str(ts).zfill(6)
@@ -206,7 +209,7 @@ def main():
     主函数
     """
     try:
-        INTERACTIVE_DEBUG = False
+        INTERACTIVE_DEBUG = False 
         
         if INTERACTIVE_DEBUG:
             print("[DEBUG] 使用调试配置")

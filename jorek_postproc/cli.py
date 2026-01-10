@@ -48,10 +48,7 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
         return
     
     print(f"  ✓ 成功读取，列数：{len(col_names)}，块数：{len(blocks)}")
-    non_zero_mask = ~np.all(np.isclose(blocks, 0.0), axis=1)
-    if np.sum(~non_zero_mask) > 0:
-        if conf.debug: print(f"  [Worker] 丢弃 {np.sum(~non_zero_mask)} 行全零数据")
-        blocks = blocks[non_zero_mask]
+    
     # 2. 处理每个时间步
     for ts in conf.timesteps:
         ts_str = str(ts).zfill(6)
@@ -63,6 +60,13 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
             continue
         
         block_data = blocks[ts_str]
+        
+        # 过滤掉原本文件中整行为0的坏数据
+        non_zero_mask = ~np.all(np.isclose(block_data, 0.0), axis=1)
+        if np.sum(~non_zero_mask) > 0:
+            if conf.debug: print(f"  丢弃 {np.sum(~non_zero_mask)} 行全零数据")
+            block_data = block_data[non_zero_mask]
+
         print(f"  ✓ 数据块大小：{block_data.shape}")
         
         # 重整化数据
@@ -138,11 +142,14 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
                     
                     save_path = os.path.join(output_dir, 
                                            f'overall_{view_name}_{ts_str}.png')
+                    if conf.debug:
+                        save_path = None
                     
                     if conf.plot_surface:
                         plot_surface_3d(grid_data, fig, ax, config=plotting_config,
                                       view_angle=angle, save_path=save_path, debug=conf.debug)
                     else:
+                        plotting_config.cmap='inferno'  # 散点图用不同配色
                         plot_scatter_3d(grid_data, fig, ax, config=plotting_config,
                                       view_angle=angle, save_path=save_path, debug=conf.debug)
                     
@@ -160,12 +167,15 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
                     
                     save_path = os.path.join(output_dir,
                                            f'{mask_name}_{ts_str}.png')
+                    if conf.debug:
+                        save_path = None
                     
                     if conf.plot_surface:
                         plot_surface_3d(grid_data, fig, ax, config=plotting_config,
                                       mask=mask, view_angle=angle, save_path=save_path,
                                       debug=conf.debug)
                     else:
+                        plotting_config.cmap='inferno'  # 散点图用不同配色
                         plot_scatter_3d(grid_data, fig, ax, config=plotting_config,
                                       mask=mask, view_angle=angle, save_path=save_path,
                                       debug=conf.debug)

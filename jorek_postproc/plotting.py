@@ -193,7 +193,10 @@ def plot_surface_3d(
         'antialiased': False,
         'shade': False
     }
-    
+    if debug:
+        kwargs['rcount'] = 32
+        kwargs['ccount'] = n_pol
+        # kwargs['antialiased'] = True
     sc = ax.plot_surface(
         R_plot, phi_plot, Z_plot,
         facecolors=cm.get_cmap(config.cmap)(norm(data_plot)),

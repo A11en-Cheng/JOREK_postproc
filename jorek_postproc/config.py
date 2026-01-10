@@ -168,7 +168,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-fm", "--find-max",
         action='store_true',
-        default=True,
+        default=False,
         help="在图上标记最大值位置"
     )
     
@@ -292,6 +292,6 @@ def create_debug_config() -> ProcessingConfig:
         output_dir=None,
         xpoints= [0.73,  -0.877, 0.73,   0.877],
         debug=True,
-        energy_impact=True,
+        energy_impact=False,
         save_convolution=False
     )

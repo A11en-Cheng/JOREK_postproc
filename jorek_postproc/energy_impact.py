@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import os
 import multiprocessing
 
+from jorek_postproc import plotting
 import numpy as np
 from typing import List, Dict, Any, Tuple, Callable, Optional
 import gc
@@ -452,45 +453,86 @@ def run_energy_impact_analysis(conf):
             
             # 1. 绘制整体视图 (Front/Back)
             for view_name, angle in [('front', (30, 30)), ('back', (30, 210))]:
-                fname = f'energy_impact_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall_{view_name}.png'
-                save_path = os.path.join(output_dir, fname)
                 
-                try:
-                    fig = plt.figure(figsize=(10, 8), dpi=150)
-                    ax = fig.add_subplot(111, projection='3d')
-                    
-                    plot_surface_3d(
-                        ref_grid_data, fig, ax, 
-                        config=plotting_config,
-                        view_angle=angle,
-                        save_path=save_path,
-                        debug=conf.debug
-                    )
-                    plt.close(fig)
-                except Exception as e:
-                    print(f"  ✗ 绘图失败 {fname}: {e}")
+                if conf.plot_surface:
+                    fname = f'energy_impact_surf_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall_{view_name}.png'
+                    save_path = os.path.join(output_dir, fname)
+                    try:
+                        fig = plt.figure(figsize=(10, 8), dpi=150)
+                        ax = fig.add_subplot(111, projection='3d')
+                        
+                        plot_surface_3d(
+                            ref_grid_data, fig, ax, 
+                            config=plotting_config,
+                            view_angle=angle,
+                            save_path=save_path,
+                            debug=conf.debug
+                        )
+                        plt.close(fig)
+                    except Exception as e:
+                        print(f"  ✗ 绘图失败 {fname}: {e}")
+                else:
+                    fname = f'energy_impact_scat_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall_{view_name}_scat.png'
+                    save_path = os.path.join(output_dir, fname)
+                    try:
+                        plotting_config.cmap='inferno'  # 散点图用不同配色
+                        fig = plt.figure(figsize=(10, 8), dpi=150)
+                        ax = fig.add_subplot(111, projection='3d')
+                        
+                        plot_scatter_3d(
+                            ref_grid_data, fig, ax, 
+                            config=plotting_config,
+                            view_angle=angle,
+                            save_path=save_path,
+                            debug=conf.debug
+                        )
+                        plt.close(fig)
+                    except Exception as e:
+                        print(f"  ✗ 散点图绘图失败 {fname}: {e}")
 
             # 2. 绘制部件视图 (Masked: UO, UI, LO, LI etc.)
             for mask_name, mask in device.masks.items():
                 angle = device.view_angles.get(mask_name, (30, 45))
-                fname = f'energy_impact_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}.png'
-                save_path = os.path.join(output_dir, fname)
                 
-                try:
-                    fig = plt.figure(figsize=(10, 8), dpi=150)
-                    ax = fig.add_subplot(111, projection='3d')
-                    
-                    plot_surface_3d(
-                        ref_grid_data, fig, ax, 
-                        config=plotting_config,
-                        mask=mask,
-                        view_angle=angle,
-                        save_path=save_path,
-                        debug=conf.debug
-                    )
-                    plt.close(fig)
-                except Exception as e:
-                    print(f"  ✗ 绘图失败 {fname}: {e}")
+                if conf.plot_surface:
+                    print(f"  ✓ 绘制部件视图: {mask_name}")
+                    fname = f'energy_impact_surf_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}.png'
+                    save_path = os.path.join(output_dir, fname)
+                    try:
+                        fig = plt.figure(figsize=(10, 8), dpi=150)
+                        ax = fig.add_subplot(111, projection='3d')
+                        
+                        plot_surface_3d(
+                            ref_grid_data, fig, ax, 
+                            config=plotting_config,
+                            mask=mask,
+                            view_angle=angle,
+                            save_path=save_path,
+                            debug=conf.debug
+                        )
+                        plt.close(fig)
+                    except Exception as e:
+                        print(f"  ✗ 绘图失败 {fname}: {e}")
+                else:
+                    print(f"  ✓ 绘制部件散点图视图: {mask_name}")
+                    fname = f'energy_impact_scat_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}.png'
+                    save_path = os.path.join(output_dir, fname)
+                    try:
+                        plotting_config.cmap='inferno'  # 散点图用不同配色
+                        fig = plt.figure(figsize=(10, 8), dpi=150)
+                        ax = fig.add_subplot(111, projection='3d')
+                        
+                        plot_scatter_3d(
+                            ref_grid_data, fig, ax, 
+                            config=plotting_config,
+                            mask=mask,
+                            view_angle=angle,
+                            save_path=save_path,
+                            debug=conf.debug
+                        )
+                        plt.close(fig)
+                    except Exception as e:
+                        print(f"  ✗ 散点图绘图失败 {fname}: {e}")
     
     # 清理 memmap
     print("[EnergyImpact] 清理临时文件...")

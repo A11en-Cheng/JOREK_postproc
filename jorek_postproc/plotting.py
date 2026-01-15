@@ -94,9 +94,9 @@ def plot_scatter_3d(
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
     # cbar.set_label(data.data_name, rotation=270, labelpad=15)
     ax.set_aspect('equalxz')
-    ax.set_xlabel('R Axis', fontsize=10)
-    ax.set_ylabel('Phi Axis', fontsize=10)
-    ax.set_zlabel('Z Axis', fontsize=10)
+    ax.set_xlabel(fr'$R$ Axis', fontsize=10)
+    ax.set_ylabel(fr'$\phi$ Axis', fontsize=10)
+    ax.set_zlabel(fr'$Z$ Axis', fontsize=10)
     ax.view_init(elev=view_angle[0], azim=view_angle[1])
     
     # 保存或显示
@@ -213,9 +213,9 @@ def plot_surface_3d(
     ax.set_aspect('equalxz')
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
     #cbar.set_label(data.data_name, rotation=270, labelpad=15)
-    ax.set_xlabel('R Axis', fontsize=10)
-    ax.set_ylabel('Phi Axis', fontsize=10)
-    ax.set_zlabel('Z Axis', fontsize=10)
+    ax.set_xlabel(fr'$R$ Axis', fontsize=10)
+    ax.set_ylabel(fr'$\phi$ Axis', fontsize=10)
+    ax.set_zlabel(fr'$Z$ Axis', fontsize=10)
     ax.view_init(elev=view_angle[0], azim=view_angle[1])
     
     # 保存或显示

@@ -62,7 +62,7 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
     sns.set_context("notebook", font_scale=1.2)
     sns.set_style("ticks")
     
-    fig, ax = plt.subplots(figsize=(4, 10), dpi=120) # 方形画布适合物理网格
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=120) # 方形画布适合物理网格
 
     # 2. 绘制网格线 (Grid Lines)
     # 解析数据
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     )
     '''
     plot_mesh_system(
-        grid_file="/home/ac_desktop/XL50-U/XL50-U_1.4.5/grid_xpoint.dat", 
+        grid_file=None, 
         boundary_files=["/home/ac_desktop/XL50-U_nl/wallcontour_updated.dat", "/home/ac_desktop/XL50-U_nl/wallcontour_adjusted.dat"],
         title="X-point Wall Grid"
     )

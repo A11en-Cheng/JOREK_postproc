@@ -48,6 +48,8 @@ class ProcessingConfig:
         是否启用能量冲击计算
     save_convolution : bool
         是否保存卷积计算结果 (.npz)
+    mode : str
+        处理模式: 'standard', 'energy_impact', 'plot_set'
     """
     file_path: str
     timesteps: List[str]
@@ -65,6 +67,7 @@ class ProcessingConfig:
     debug: bool = False
     energy_impact: bool = False
     save_convolution: bool = False
+    mode: str = 'standard'
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -199,7 +202,15 @@ def create_parser() -> argparse.ArgumentParser:
         "--energy_impact",
         action='store_true',
         default=False,
-        help="启用能量冲击计算"
+        help="启用能量冲击计算 (Deprecated: use --mode energy_impact)"
+    )
+
+    parser.add_argument(
+        "-m", "--mode",
+        type=str,
+        default='standard',
+        choices=['standard', 'energy_impact', 'plot_set'],
+        help="处理模式：'standard' (默认), 'energy_impact', 'plot_set'"
     )
     
     parser.add_argument(
@@ -247,6 +258,11 @@ def parse_args(args=None) -> ProcessingConfig:
             if parsed.debug:
                 print(f"[Config] Failed to get default xpoints for {parsed.device}: {e}")
             xpoints = None
+            
+    # Determine mode: logic to support both --energy_impact and --mode
+    mode = parsed.mode
+    if parsed.energy_impact:
+        mode = 'energy_impact'
     
     return ProcessingConfig(
         file_path=parsed.file,
@@ -263,8 +279,9 @@ def parse_args(args=None) -> ProcessingConfig:
         output_dir=parsed.output_dir,
         xpoints=xpoints,
         debug=parsed.debug,
-        energy_impact=parsed.energy_impact,
-        save_convolution=parsed.save_convolution
+        energy_impact=(mode == 'energy_impact'),
+        save_convolution=parsed.save_convolution,
+        mode=mode
     )
 
 

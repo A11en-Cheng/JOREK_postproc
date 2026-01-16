@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from . import config as cfg
-from . import energy_impact  # 新增导入
+from . import energy_impact
+from . import boundary_analysis  # 新增导入
 from . import (
     read_boundary_file,
     reshape_to_grid,
@@ -235,14 +236,19 @@ def main():
                 print(f"  iplane：{conf.iplane}")
                 print(f"  数据：{conf.data_name}")
                 print(f"  设备：{conf.device}")
+                print(f"  模式：{conf.mode}")
                 print(f"  绘图模式：{'表面图' if conf.plot_surface else '散点图'}")
         
-        # 处理数据
-        if not conf.energy_impact:
+        # 根据模式分发处理
+        if conf.mode == 'standard':
             process_single_timestep(conf)
-        else:
+        elif conf.mode == 'energy_impact':
             process_energy_impact(conf)
-        
+        elif conf.mode == 'plot_set':
+            boundary_analysis.run_boundary_analysis(conf)
+        else:
+            print(f"无法识别的模式: {conf.mode}")
+            
     except KeyboardInterrupt:
         print("\n\n用户中断处理")
         sys.exit(1)

@@ -41,10 +41,10 @@ class BoundaryQuantitiesData:
     phi: np.ndarray
     data: np.ndarray
     data_name: str
-    theta: Optional[np.ndarray] = None
     time: Optional[float] = None
     time_step: Optional[str] = None
     grid_shape: Optional[Tuple[int, int]] = None
+    theta: Optional[np.ndarray] = None
     
     def is_2d_grid(self) -> bool:
         """检查数据是否已重整化为2D网格格式"""
@@ -64,10 +64,10 @@ class BoundaryQuantitiesData:
             phi=np.reshape(self.phi, (iplane, n_poloidal), order='C'),
             data=np.reshape(self.data, (iplane, n_poloidal), order='C'),
             data_name=self.data_name,
-            theta=np.reshape(self.theta, (iplane, n_poloidal), order='C') if self.theta is not None else None,
             time=self.time,
             time_step=self.time_step,
-            grid_shape=(iplane, n_poloidal)
+            grid_shape=(iplane, n_poloidal),
+            theta=np.reshape(self.theta, (iplane, n_poloidal), order='C') if self.theta is not None else None
         )
 
 

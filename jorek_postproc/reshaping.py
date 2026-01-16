@@ -9,7 +9,7 @@ from typing import Tuple, List, Optional, Dict
 from .data_models import BoundaryQuantitiesData
 
 
-def _remove_backtracking_spurs(r, z, v, th=None):
+def _remove_backtracking_spurs(r, z, v):
     """
     通过检测路径中的"回溯跳跃"去除中间的冗余分支（Spurs）。
     Greedy排序在遇到岔路时会走进死胡同，并在尽头"跳"回主路。
@@ -24,15 +24,13 @@ def _remove_backtracking_spurs(r, z, v, th=None):
     ----------
     r, z, v : np.ndarray
         已按最近邻排序的点序列
-    th : np.ndarray, optional
-        对应的theta数组
         
     Returns
     -------
-    Cleaned r, z, v, (th)
+    Cleaned r, z, v
     """
     if len(r) < 10:
-        return (r, z, v, th) if th is not None else (r, z, v)
+        return r, z, v
 
 
     # --- 1.5 预处理：消除多点局部回路 (Small Loop / Sharp Spike Removal) ---
@@ -94,8 +92,6 @@ def _remove_backtracking_spurs(r, z, v, th=None):
         r = r[keep_mask]
         z = z[keep_mask]
         v = v[keep_mask]
-        if th is not None:
-            th = th[keep_mask]
 
     # --- 2. 识别回溯跳跃 (Main Spur Removal) ---
     # 重新计算步长
@@ -127,7 +123,7 @@ def _remove_backtracking_spurs(r, z, v, th=None):
     jump_indices = np.where(jump_mask)[0]
     
     if len(jump_indices) == 0:
-        return (r, z, v, th) if th is not None else (r, z, v)
+        return r, z, v
         
     # 构建保留掩码
     keep_mask = np.ones(len(r), dtype=bool)
@@ -167,13 +163,11 @@ def _remove_backtracking_spurs(r, z, v, th=None):
             
             # 剪切范围: (branch_idx + 1) 到 jump_idx (包含)
             keep_mask[branch_idx+1 : jump_idx+1] = False
-    
-    if th is not None:
-        return r[keep_mask], z[keep_mask], v[keep_mask], th[keep_mask]
+            
     return r[keep_mask], z[keep_mask], v[keep_mask]
 
 
-def _remove_radial_outliers(r_sorted, z_sorted, v_sorted, c_r, c_z, th=None, threshold=1.1, is_circular=True):
+def _remove_radial_outliers(r_sorted, z_sorted, v_sorted, c_r, c_z, threshold=1.1, is_circular=True, extras=None):
     """
     去除极径方向上的突刺点（用于清除交叉处的冗余延伸线）。
     基于极坐标下的局部平滑性：如果一个点比其前后邻居的插值显著更远，则视为离群点。
@@ -184,9 +178,14 @@ def _remove_radial_outliers(r_sorted, z_sorted, v_sorted, c_r, c_z, th=None, thr
     is_circular : bool
         是否为闭合曲线。如果是 (True)，首尾点会被视为邻居处理。
         如果否 (False)，首尾点被视为开放端点，不进行离群检测（保留）。
+    extras : list of np.ndarray, optional
+        额外的需要同步过滤的数据数组(如 theta)
     """
+    if extras is None:
+        extras = []
+
     if len(r_sorted) < 5:
-        return (r_sorted, z_sorted, v_sorted, th) if th is not None else (r_sorted, z_sorted, v_sorted)
+        return r_sorted, z_sorted, v_sorted, extras
         
     # 迭代几次以清除连续的坏点
     for _ in range(2):
@@ -224,15 +223,17 @@ def _remove_radial_outliers(r_sorted, z_sorted, v_sorted, c_r, c_z, th=None, thr
         if np.sum(is_spike) == 0:
             break
             
-        # 保留非突刺点
-        mask = ~is_spike
-        r_sorted = r_sorted[mask]
-        z_sorted = z_sorted[mask]
-        v_sorted = v_sorted[mask]
-        if th is not None:
-            th = th[mask]
+        # 应用过滤
+        keep = ~is_spike
+        r_sorted = r_sorted[keep]
+        z_sorted = z_sorted[keep]
+        v_sorted = v_sorted[keep]
         
-    return (r_sorted, z_sorted, v_sorted, th) if th is not None else (r_sorted, z_sorted, v_sorted)
+        # 过滤额外数组
+        for i in range(len(extras)):
+            extras[i] = extras[i][keep]
+            
+    return r_sorted, z_sorted, v_sorted, extras
 
 
 def _sort_by_nearest_neighbor(r, z, anchor_point=None):
@@ -348,7 +349,7 @@ def _sort_by_nearest_neighbor(r, z, anchor_point=None):
     return np.array(ordered_indices)
 
 
-def _peel_outlier_tips(r, z, v, th=None, max_dist_factor=None):
+def _peel_outlier_tips(r, z, v, max_dist_factor=None, extras=None):
     """
     从有序曲线的两端向内剥离（删除）过于平均距离的点。
     适用于去除密集的延伸尾部（Tail）。
@@ -358,9 +359,14 @@ def _peel_outlier_tips(r, z, v, th=None, max_dist_factor=None):
     max_dist_factor : float
         如果端点距离超过 (平均距离 * factor)，则视为延伸尾部并剥离。
         如果为 None，则自动根据分布估算。
+    extras : list of np.ndarray, optional
+        额外的需要同步过滤的数据数组(如 theta)
     """
+    if extras is None:
+        extras = []
+
     if len(r) < 10:
-        return (r, z, v, th) if th is not None else (r, z, v)
+        return r, z, v, extras
     # 计算相邻步长
     dr = np.diff(r)
     dz = np.diff(z)
@@ -370,7 +376,9 @@ def _peel_outlier_tips(r, z, v, th=None, max_dist_factor=None):
     step_mean = np.mean(steps)
     if step_mean == 0: step_mean = 1e-6 # 防止除零
     
-    
+    if max_dist_factor is None:
+        max_dist_factor = 3.0
+
     # 设定截断阈值
     jump_threshold = max(step_mean * max_dist_factor, 0.05) # 绝对阈值保底
     
@@ -382,10 +390,10 @@ def _peel_outlier_tips(r, z, v, th=None, max_dist_factor=None):
         r = r[:first_jump_idx+1]
         z = z[:first_jump_idx+1]
         v = v[:first_jump_idx+1]
-        if th is not None:
-            th = th[:first_jump_idx+1]
+        for i in range(len(extras)):
+            extras[i] = extras[i][:first_jump_idx+1]
     
-    return (r, z, v, th) if th is not None else (r, z, v)
+    return r, z, v, extras
 
 
 
@@ -445,18 +453,21 @@ def reshape_to_grid(
     except ValueError as e:
         raise ValueError(f"Column name mismatch: {e}")
 
+    try:
+        theta_idx = col_names.index('theta')
+        has_theta = True
+    except ValueError:
+        theta_idx = -1
+        has_theta = False
+
     if debug:
-        print(f"[Reshaping] Column indices: R={r_idx}, Z={z_idx}, phi={phi_idx}, value={val_idx}")
+        print(f"[Reshaping] Column indices: R={r_idx}, Z={z_idx}, phi={phi_idx}, value={val_idx}, theta={theta_idx}")
     # 提取原始一维数据
     R_raw = block[:, r_idx]
     Z_raw = block[:, z_idx]
     phi_raw = block[:, phi_idx]
     val_raw = block[:, val_idx]
-    
-    theta_raw = None
-    if 'theta' in col_names:
-        theta_idx = col_names.index('theta')
-        theta_raw = block[:, theta_idx]
+    theta_raw = block[:, theta_idx] if has_theta else None
 
     # 2. 识别唯一的 Phi 切面 (Toroidal Planes)
     unique_phi = np.unique(np.round(phi_raw, 5))
@@ -592,18 +603,18 @@ def reshape_to_grid(
             r_up = r_slice_up[sort_idx_up]
             z_up = z_slice_up[sort_idx_up]
             v_up = val_raw[mask][mask_xpt_up][sort_idx_up]
-            th_up = None
-            if theta_raw is not None:
-                th_up = theta_raw[mask][mask_xpt_up][sort_idx_up]
+            t_up = theta_raw[mask][mask_xpt_up][sort_idx_up] if has_theta else None
             
             # 1. 端点剥离 (去除路径末端可能残留的长尾)
-            r_up, z_up, v_up, th_up = _peel_outlier_tips(
-                 r_up, z_up, v_up, th=th_up, max_dist_factor=2.0
+            extras_up = [t_up] if has_theta else []
+            r_up, z_up, v_up, extras_up = _peel_outlier_tips(
+                 r_up, z_up, v_up, max_dist_factor=2.0, extras=extras_up
              )
+            if has_theta: t_up = extras_up[0]
             
             # 2. 剪除回溯分支 (去除中间的死胡同 - 基于跳跃)
             # 这是处理拓扑冗余(Spurs)最核心的步骤
-            r_up, z_up, v_up, th_up = _remove_backtracking_spurs(r_up, z_up, v_up, th=th_up)
+            #r_up, z_up, v_up = _remove_backtracking_spurs(r_up, z_up, v_up)
 
 
 
@@ -612,16 +623,15 @@ def reshape_to_grid(
             r_dn = r_slice_dn[sort_idx_dn]
             z_dn = z_slice_dn[sort_idx_dn]
             v_dn = val_raw[mask][mask_xpt_dn][sort_idx_dn]
-            th_dn = None
-            if theta_raw is not None:
-                th_dn = theta_raw[mask][mask_xpt_dn][sort_idx_dn]
+            t_dn = theta_raw[mask][mask_xpt_dn][sort_idx_dn] if has_theta else None
             
-            
-            r_dn, z_dn, v_dn, th_dn = _peel_outlier_tips(
-                r_dn, z_dn, v_dn, th=th_dn, max_dist_factor=2.0
+            extras_dn = [t_dn] if has_theta else []
+            r_dn, z_dn, v_dn, extras_dn = _peel_outlier_tips(
+                r_dn, z_dn, v_dn, max_dist_factor=2.0, extras=extras_dn
             )
+            if has_theta: t_dn = extras_dn[0]
             
-            r_dn, z_dn, v_dn, th_dn = _remove_backtracking_spurs(r_dn, z_dn, v_dn, th=th_dn)
+            #r_dn, z_dn, v_dn = _remove_backtracking_spurs(r_dn, z_dn, v_dn)
             
 
             
@@ -631,16 +641,17 @@ def reshape_to_grid(
             r_sorted = np.concatenate((r_up, r_dn))
             z_sorted = np.concatenate((z_up, z_dn))
             v_sorted = np.concatenate((v_up, v_dn))
-            th_sorted = None
-            if theta_raw is not None:
-                th_sorted = np.concatenate((th_up, th_dn))
+            if has_theta:
+                t_sorted = np.concatenate((t_up, t_dn))
+            else:
+                t_sorted = None
             # --------------------------------
             
             R_slices.append(r_sorted)
             Z_slices.append(z_sorted)
             Phi_slices.append(np.full_like(r_sorted, current_phi))
             Val_slices.append(v_sorted)
-            Theta_slices.append(th_sorted)
+            if has_theta: Theta_slices.append(t_sorted)
             
             points_per_slice.append(len(r_sorted))
         
@@ -649,9 +660,7 @@ def reshape_to_grid(
             r_slice = R_raw[mask]
             z_slice = Z_raw[mask]
             v_slice = val_raw[mask]
-            th_slice = None
-            if theta_raw is not None:
-                th_slice = theta_raw[mask]
+            t_slice = theta_raw[mask] if has_theta else None
             
             if len(r_slice) == 0:
                 continue
@@ -673,22 +682,22 @@ def reshape_to_grid(
             r_sorted = r_slice[sort_idx]
             z_sorted = z_slice[sort_idx]
             v_sorted = v_slice[sort_idx]
-            th_sorted = None
-            if th_slice is not None:
-                th_sorted = th_slice[sort_idx]
+            t_sorted = t_slice[sort_idx] if has_theta else None
             
             # --- 新增：清洗交叉处的冗余突刺点 ---
             # 这种点通常特征是：在排序后的多边形路径上，出现了远离重心的尖峰
-            r_sorted, z_sorted, v_sorted, th_sorted = _remove_radial_outliers(
-                r_sorted, z_sorted, v_sorted, c_r, c_z, th=th_sorted, threshold=1.05
+            extras = [t_sorted] if has_theta else []
+            r_sorted, z_sorted, v_sorted, extras = _remove_radial_outliers(
+                r_sorted, z_sorted, v_sorted, c_r, c_z, threshold=1.05, extras=extras
             )
+            if has_theta: t_sorted = extras[0]
             # --------------------------------
             
             R_slices.append(r_sorted)
             Z_slices.append(z_sorted)
             Phi_slices.append(np.full_like(r_sorted, current_phi))
             Val_slices.append(v_sorted)
-            Theta_slices.append(th_sorted)
+            if has_theta: Theta_slices.append(t_sorted)
             
             points_per_slice.append(len(r_sorted))
 
@@ -703,18 +712,14 @@ def reshape_to_grid(
             Z_slices[i] = Z_slices[i][:min_points]
             Phi_slices[i] = Phi_slices[i][:min_points]
             Val_slices[i] = Val_slices[i][:min_points]
-            if Theta_slices[i] is not None:
-                Theta_slices[i] = Theta_slices[i][:min_points]
+            if has_theta: Theta_slices[i] = Theta_slices[i][:min_points]
     
     # 5. 堆叠成 2D 矩阵 (N_phi x N_poloidal)
     R_grid = np.vstack(R_slices)
     Z_grid = np.vstack(Z_slices)
     Phi_grid = np.vstack(Phi_slices)
     Val_grid = np.vstack(Val_slices)
-    
-    Theta_grid = None
-    if len(Theta_slices) > 0 and all(th is not None for th in Theta_slices):
-        Theta_grid = np.vstack(Theta_slices)
+    Theta_grid = np.vstack(Theta_slices) if has_theta else None
     
     if debug:
         print(f"[Reshaping] Reshaped grid size: {R_grid.shape}")
@@ -725,7 +730,7 @@ def reshape_to_grid(
         phi=Phi_grid,
         data=Val_grid,
         data_name=val_col_name,
-        theta=Theta_grid,
-        grid_shape=R_grid.shape
+        grid_shape=R_grid.shape,
+        theta=Theta_grid
     )
 

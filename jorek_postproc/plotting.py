@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 
 from .data_models import BoundaryQuantitiesData, PlottingConfig
 
@@ -271,6 +271,7 @@ def plot_heat_flux_analysis(
     data: BoundaryQuantitiesData,
     config: Optional[PlottingConfig] = None,
     save_path: Optional[str] = None,
+    regions: Optional[List[Dict]] = None,
     debug: bool = False
 ) -> None:
     """
@@ -285,6 +286,8 @@ def plot_heat_flux_analysis(
         处理后的边界数据 (必须包含theta信息)
     config : PlottingConfig
     save_path : str
+    regions : list of dict
+        关键区域标记 [{'label': 'IU', 'mask': bool_array_2d, 'color': 'red'}, ...]
     """
     if config is None:
         config = PlottingConfig()
@@ -294,72 +297,61 @@ def plot_heat_flux_analysis(
         return
 
     # 创建画布
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    plt.rcParams.update({'font.size': 14}) # 增大字体
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), dpi=200)
 
     # --- 左图：R-Z 边界轮廓 (取 phi=0 的截面) ---
-    # 假设数据已经是 grid (phi, pol)
-    # 取第一圈 phi 对应的 poloidal 数据
     try:
         if data.is_2d_grid():
             R_pol = data.R[0, :]
             Z_pol = data.Z[0, :]
             theta_pol = data.theta[0, :]
         else:
-            # 如果是散点，稍微麻烦点，这里先只支持 grid
             if debug: print("Data is not grid, skipping R-Z plot")
             return
             
-        ax1.plot(R_pol, Z_pol, 'k-', linewidth=1.5, label='Boundary')
+        ax1.plot(R_pol, Z_pol, 'k-', linewidth=1.5, alpha=0.6, label='Boundary')
         ax1.set_aspect('equal')
-        ax1.set_xlabel('R [m]')
-        ax1.set_ylabel('Z [m]')
-        ax1.set_title(f'Poloidal Cross-section (phi={data.phi[0,0]:.2f})')
+        ax1.set_xlabel(r'$R$ [m]')
+        ax1.set_ylabel(r'$Z$ [m]')
+        # ax1.set_title(f'Poloidal Cross-section')
         ax1.grid(True, alpha=0.3)
 
-        # 定义关键位置 (Div targets) 的 theta 范围或点
-        # 这里的坐标点参考了用户提供的脚本中的注释
-        # inner_upper, outer_upper, outer_lower, inner_lower
-        # 对应大概的 theta 值 (需要根据实际平衡确认，这里沿用用户脚本的数值作为示例)
-        key_points = [
-            {'label': 'IU', 'theta': 1.95, 'color': 'red'},
-            {'label': 'OU', 'theta': 1.45, 'color': 'orange'},
-            {'label': 'OL', 'theta': 4.86, 'color': 'green'},
-            {'label': 'IL', 'theta': 4.33, 'color': 'blue'}
-        ]
+        if regions:
+            for reg in regions:
+                # 左图：绘制区域对应的线段 (取第一圈 phi=0 对应的 mask)
+                # mask 形状假设为 (N_phi, N_pol)，取 [0, :]
+                if 'mask' in reg:
+                    mask_pol = reg['mask'][0, :]
+                    
+                    # 更好的方法：分段绘制
+                    # 但为了简单，先画点，点够密就是线
+                    ax1.plot(R_pol[mask_pol], Z_pol[mask_pol], 
+                             color=reg['color'], linewidth=3, label=reg['label'])
+                    
+                    # 标注文字 (在区域中心)
+                    if np.any(mask_pol):
+                        c_r = np.mean(R_pol[mask_pol])
+                        c_z = np.mean(Z_pol[mask_pol])
+                        ax1.text(c_r, c_z, reg['label'], color=reg['color'], 
+                                 fontweight='bold', fontsize=12, ha='center', va='center',
+                                 bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1))
 
-        for kp in key_points:
-            # 在 R-Z 轮廓上找到对应 theta 最近的点
-            idx = np.argmin(np.abs(theta_pol - kp['theta']))
-            r_pt, z_pt = R_pol[idx], Z_pol[idx]
-            
-            # 绘制点和标签
-            ax1.scatter(r_pt, z_pt, c=kp['color'], s=50, zorder=5)
-            ax1.annotate(kp['label'], (r_pt, z_pt), 
-                         xytext=(5, 5), textcoords='offset points', 
-                         color=kp['color'], fontweight='bold')
     except Exception as e:
-        if debug: print(f"Error plotting R-Z contour: {e}")
+        if debug: 
+            print(f"Error plotting R-Z contour: {e}")
+            import traceback
+            traceback.print_exc()
 
     # --- 右图：Phi-Theta 热流分布 ---
-    # data.phi 形状 (N_phi, N_pol)
-    # data.theta 形状 (N_phi, N_pol) -> 用第一行的 theta 做 x 轴即可 (忽略 theta随phi微小的变化)
-    # data.data 形状 (N_phi, N_pol)
+    # 转置坐标系：Phi -> X, Theta -> Y
     
-    #构造网格
-    # Y轴: Phi (0 ~ 2pi)
-    # X轴: Theta (0 ~ 2pi)
-    
-    # 展平做 pcolormesh
-    # 注意：jorek 的 phi 可能是 multiharmonic展开的，这里假设已经是物理空间的 grid
     phi_axis = data.phi[:, 0]
-    theta_axis = data.theta[0, :] # 假设所有截面 theta 分布一致
+    theta_axis = data.theta[0, :] 
     
-    # 数据矩阵转置? 
-    # data.data[i_phi, i_pol] -> row 是 phi, col 是 theta
-    # pcolormesh(X, Y, C) -> X 是列坐标(theta), Y 是行坐标(phi)
+    val = data.data 
+    # val shape: (N_phi, N_theta)
     
-    # 简单的归一化
-    val = data.data
     if config.data_limits:
         val = np.clip(val, config.data_limits[0], config.data_limits[1])
         
@@ -367,25 +359,53 @@ def plot_heat_flux_analysis(
         norm = LogNorm(vmin=np.nanmin(val[val>0]), vmax=np.nanmax(val))
     else:
         norm = plt.Normalize(vmin=np.nanmin(val), vmax=np.nanmax(val))
-        
-    # 绘制热图
-    # 注意 pcolormesh 需要网格边缘，这里简化直接用中心点坐标会自动居中
-    mesh = ax2.pcolormesh(theta_axis, phi_axis, val, 
-                          cmap=config.cmap, norm=norm, shading='auto')
     
-    # 标记关键位置的竖线
-    for kp in key_points:
-        ax2.axvline(x=kp['theta'], color=kp['color'], linestyle='--', alpha=0.8)
-        ax2.text(kp['theta'], phi_axis.max(), kp['label'], 
-                 color=kp['color'], ha='center', va='bottom', fontweight='bold')
+    # pcolormesh(X, Y, C)
+    # X: Phi (N_phi), Y: Theta (N_theta), C: (N_theta, N_phi) -> Transpose val
+    mesh = ax2.pcolormesh(phi_axis, theta_axis, val.T, 
+                          cmap='viridis', norm=norm, shading='auto') 
+    
+    # 标记区域框
+    if regions:
+        for reg in regions:
+            if 'mask' in reg:
+                # 找出该区域对应的 theta 范围
+                # 只要该 mask 在任意 phi 处为 True，就算入范围？
+                # 通常 geometry mask 是axisymmetric定义的，所以对所有 phi 一样
+                # 取 mask[0, :] 即可
+                mask_pol = reg['mask'][0, :]
+                if np.any(mask_pol):
+                    thetas_in_region = theta_axis[mask_pol]
+                    t_min = np.min(thetas_in_region)
+                    t_max = np.max(thetas_in_region)
+                    
+                    # 绘制矩形框或线
+                    # 在 Theta 轴 (Y轴) 上标记范围
+                    # 绘制半透明矩形覆盖全 Phi
+                    rect = plt.Rectangle((phi_axis.min(), t_min), 
+                                         phi_axis.max() - phi_axis.min(), 
+                                         t_max - t_min,
+                                         edgecolor=reg['color'], facecolor='none', 
+                                         linewidth=2, linestyle='--')
+                    ax2.add_patch(rect)
+                    
+                    # 标注文字
+                    ax2.text(phi_axis.max(), (t_min + t_max)/2, f" {reg['label']}", 
+                             color=reg['color'], va='center', fontweight='bold')
 
-    fig.colorbar(mesh, ax=ax2, label=data.data_name)
-    ax2.set_xlabel('Theta (Poloidal Angle)')
-    ax2.set_ylabel('Phi (Toroidal Angle)')
-    ax2.set_title(f'Heat Flux Distribution: {data.data_name}')
+    cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name)
+    ax2.set_aspect('equal') # 强制等比例
+    ax2.set_xlabel(r'$\phi$ (Toroidal Angle)')
+    ax2.set_ylabel(r'$\theta$ (Poloidal Angle)')
     
-    # 反转 X 轴? 通常 theta 从 0 到 2pi
-    ax2.set_xlim(theta_axis.min(), theta_axis.max())
+    title_str = f'Heat Flux'
+    if data.time:
+        title_str += f' (t={data.time:.4f}s)'
+    ax2.set_title(title_str)
+    
+    # 调整显示范围
+    ax2.set_xlim(phi_axis.min(), phi_axis.max())
+    # ax2.set_ylim(theta_axis.min(), theta_axis.max())
 
     plt.tight_layout()
     
@@ -397,3 +417,31 @@ def plot_heat_flux_analysis(
         plt.show()
     
     plt.close(fig)
+
+def plot_set(
+    data: BoundaryQuantitiesData,
+    config: Optional[PlottingConfig] = None,
+    save_path: Optional[str] = None,
+    regions: Optional[List[Dict]] = None,
+    debug: bool = False
+) -> None:
+    """
+    绘制完整的边界分析图集（plot_set）。
+    别名函数，调用 plot_heat_flux_analysis。
+    
+    Parameters
+    ----------
+    data : BoundaryQuantitiesData
+        边界数据（需包含R, Z, phi, theta, data）
+    config : PlottingConfig, optional
+        绘图配置
+    save_path : str, optional
+        保存路径
+    regions : list of dict, optional
+         关键区域标记 [{'label': 'IU', 'mask': bool_array_2d, 'color': 'red'}, ...]
+    debug : bool
+        调试信息
+    """
+    if debug:
+        print("[Plotting] Executing plot_set...")
+    plot_heat_flux_analysis(data, config, save_path, regions, debug)

@@ -105,9 +105,9 @@ def plot_data(files, args):
                 is_abs_applied = True
             
             # 构建 Label
-            label_str = f"{y_col}"
+            label_str = fr"{y_col}"
             if is_abs_applied:
-                label_str = f"|{y_col}|"
+                label_str = fr"$|{y_col}|$"
             
             # 线型区分
             linetype = '-'
@@ -129,13 +129,13 @@ def plot_data(files, args):
             
             
             if args.right_axis and file_path == files[-1]:
-                axis.set_ylabel(f"{y_col} (Right Axis)", fontsize=14)
+                axis.set_ylabel(fr"$|{y_col}|$ (Right Axis)", fontsize=14)
                 max_val = Y.max()
                 ax2.set_ylim(0, max_val)
             color_idx += 1
 
     # 坐标轴与标题
-    ax.set_xlabel(f"{x_col} (Axis 0)", fontsize=14)
+    ax.set_xlabel(fr"${x_col}$ (Axis 0)", fontsize=14)
     y_label_str = "Values"
     if args.abs: y_label_str = "Absolute Value"
     if args.logy: y_label_str += " (Log Scale)"
@@ -151,7 +151,21 @@ def plot_data(files, args):
     if args.logy:
         ax.grid(True, which="minor", linestyle=':', linewidth=0.3, color='gray', alpha=0.3)
     
+    # 这一行会默认移除 ax 的右边框和上边框
     sns.despine()
+    
+    # ------------------ 修改开始 ------------------
+    # 针对右侧坐标轴 (ax2) 的特殊处理
+    if args.right_axis:
+        # 1. 确保右侧的轴线（脊柱）是可见的
+        ax2.spines['right'].set_visible(True)
+        # 2. 设置轴线颜色（可选，保持黑色或跟随主题）
+        ax2.spines['right'].set_color('black')
+        # 3. 关键步骤：隐藏刻度线 (length=0 或 right=False)，但保留文字标签
+        ax2.tick_params(axis='y', which='both', right=False) 
+    else:
+        # 如果没用到右轴，最好把它彻底隐藏，防止显示多余的边框
+        ax2.axis('off')
     
     # 图例处理
     ax.legend(lines, labels, frameon=True, framealpha=0.9, loc='upper right', fontsize=14)

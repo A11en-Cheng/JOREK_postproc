@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from . import config as cfg
+from . import energy_impact  # 新增导入
 from . import (
     read_boundary_file,
     reshape_to_grid,
@@ -59,6 +60,13 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
             continue
         
         block_data = blocks[ts_str]
+        
+        # 过滤掉原本文件中整行为0的坏数据
+        non_zero_mask = ~np.all(np.isclose(block_data, 0.0), axis=1)
+        if np.sum(~non_zero_mask) > 0:
+            if conf.debug: print(f"  丢弃 {np.sum(~non_zero_mask)} 行全零数据")
+            block_data = block_data[non_zero_mask]
+
         print(f"  ✓ 数据块大小：{block_data.shape}")
         
         # 重整化数据
@@ -96,7 +104,7 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
         # 获取装置几何
         print(f"\n[4/4] 获取装置位形...")
         try:
-            device = get_device_geometry(conf.device, grid_data.R, grid_data.Z, debug=conf.debug)
+            device = get_device_geometry(conf.device, grid_data.R, grid_data.Z, xpoints=xpoints, debug=conf.debug)
             print(f"  ✓ 装置：{device.name}")
             print(f"  ✓ 位置：{list(device.masks.keys())}")
         except Exception as e:
@@ -134,11 +142,14 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
                     
                     save_path = os.path.join(output_dir, 
                                            f'overall_{view_name}_{ts_str}.png')
+                    if conf.debug:
+                        save_path = None
                     
                     if conf.plot_surface:
                         plot_surface_3d(grid_data, fig, ax, config=plotting_config,
                                       view_angle=angle, save_path=save_path, debug=conf.debug)
                     else:
+                        plotting_config.cmap='inferno'  # 散点图用不同配色
                         plot_scatter_3d(grid_data, fig, ax, config=plotting_config,
                                       view_angle=angle, save_path=save_path, debug=conf.debug)
                     
@@ -156,12 +167,15 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
                     
                     save_path = os.path.join(output_dir,
                                            f'{mask_name}_{ts_str}.png')
+                    if conf.debug:
+                        save_path = None
                     
                     if conf.plot_surface:
                         plot_surface_3d(grid_data, fig, ax, config=plotting_config,
                                       mask=mask, view_angle=angle, save_path=save_path,
                                       debug=conf.debug)
                     else:
+                        plotting_config.cmap='inferno'  # 散点图用不同配色
                         plot_scatter_3d(grid_data, fig, ax, config=plotting_config,
                                       mask=mask, view_angle=angle, save_path=save_path,
                                       debug=conf.debug)
@@ -179,26 +193,55 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
     print("✓ 处理完成！")
     print("="*70)
 
+def process_energy_impact(conf: cfg.ProcessingConfig):
+    """
+    处理能量冲击计算的完整流程。
+    """
+    print("\n" + "="*70)
+    print(f"启动能量冲击分析 (Energy Impact Analysis)")
+    print(f"基准文件路径：{conf.file_path}")
+    print(f"包含时间步数：{len(conf.timesteps)}")
+    print(f"物理量：{conf.data_name}")
+    print("="*70)
+
+    try:
+        # 调用新模块的处理函数
+        energy_impact.run_energy_impact_analysis(conf)
+    except Exception as e:
+        print(f"\n✗ 能量冲击计算失败：{e}")
+        
+        import traceback
+        traceback.print_exc()
+
 
 def main():
     """
     主函数
     """
     try:
-        # 解析命令行参数
-        conf = cfg.parse_args()
+        INTERACTIVE_DEBUG = False 
         
-        if conf.debug:
-            print(f"[DEBUG] 配置信息：")
-            print(f"  文件：{conf.file_path}")
-            print(f"  时间步：{conf.timesteps}")
-            print(f"  iplane：{conf.iplane}")
-            print(f"  数据：{conf.data_name}")
-            print(f"  设备：{conf.device}")
-            print(f"  绘图模式：{'表面图' if conf.plot_surface else '散点图'}")
+        if INTERACTIVE_DEBUG:
+            print("[DEBUG] 使用调试配置")
+            conf = cfg.create_debug_config()
+        else:
+        # 解析命令行参数
+            conf = cfg.parse_args()
+            
+            if conf.debug:
+                print(f"[DEBUG] 配置信息：")
+                print(f"  文件：{conf.file_path}")
+                print(f"  时间步：{conf.timesteps}")
+                print(f"  iplane：{conf.iplane}")
+                print(f"  数据：{conf.data_name}")
+                print(f"  设备：{conf.device}")
+                print(f"  绘图模式：{'表面图' if conf.plot_surface else '散点图'}")
         
         # 处理数据
-        process_single_timestep(conf)
+        if not conf.energy_impact:
+            process_single_timestep(conf)
+        else:
+            process_energy_impact(conf)
         
     except KeyboardInterrupt:
         print("\n\n用户中断处理")

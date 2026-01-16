@@ -62,7 +62,7 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
     sns.set_context("notebook", font_scale=1.2)
     sns.set_style("ticks")
     
-    fig, ax = plt.subplots(figsize=(4, 10), dpi=120) # 方形画布适合物理网格
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=120) # 方形画布适合物理网格
 
     # 2. 绘制网格线 (Grid Lines)
     # 解析数据
@@ -83,13 +83,13 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
     # 3. 绘制边界 (Boundaries)
     # 使用高对比度颜色强调边界
     boundary_colors = ['#e74c3c', '#e67e22', '#8e44ad'] # 红、橙、紫
-    
+    boundaries = ['Real PFCs','JOREK simulation boundary']
     for i, b_file in enumerate(boundary_files):
         b_data = load_boundary(b_file)
         if b_data is not None:
             color = boundary_colors[i % len(boundary_colors)]
             ax.plot(b_data[:, 0], b_data[:, 1],
-                    label=f"Boundary {i+1}",
+                    label=f"{boundaries[i]}",
                     color=color,
                     linewidth=1.5, # 边界线加粗
                     linestyle='-')
@@ -191,6 +191,7 @@ if __name__ == "__main__":
     
     # 2. 绘图
     # 将你的文件名填入这里
+    '''
     plot_mesh_system(
         grid_file="/home/ac_desktop/XL50-U/XL50-U_1.4.5/grid_xpoint.dat", 
         boundary_files=[],
@@ -198,7 +199,8 @@ if __name__ == "__main__":
     )
     '''
     plot_mesh_system(
+        grid_file=None, 
         boundary_files=["/home/ac_desktop/XL50-U_nl/wallcontour_updated.dat", "/home/ac_desktop/XL50-U_nl/wallcontour_adjusted.dat"],
-        title="Boundary Comparison"
+        title="X-point Wall Grid"
     )
-    '''
+    

@@ -6,7 +6,8 @@ import argparse
 from typing import List, Optional, Tuple
 from dataclasses import dataclass, field
 import sys
-
+from jorek_postproc import get_device_geometry
+import numpy as np
 
 @dataclass
 class ProcessingConfig:
@@ -43,6 +44,10 @@ class ProcessingConfig:
         X点坐标 [x1, z1, x2, z2]，用于双X点表面整理
     debug : bool
         调试模式标志
+    energy_impact : bool
+        是否启用能量冲击计算
+    save_convolution : bool
+        是否保存卷积计算结果 (.npz)
     """
     file_path: str
     timesteps: List[str]
@@ -58,6 +63,8 @@ class ProcessingConfig:
     output_dir: Optional[str] = None
     xpoints: List[float] = field(default_factory=list)
     debug: bool = False
+    energy_impact: bool = False
+    save_convolution: bool = False
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -161,7 +168,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-fm", "--find-max",
         action='store_true',
-        default=True,
+        default=False,
         help="在图上标记最大值位置"
     )
     
@@ -188,6 +195,20 @@ def create_parser() -> argparse.ArgumentParser:
         help="启用调试模式"
     )
     
+    parser.add_argument(
+        "--energy_impact",
+        action='store_true',
+        default=False,
+        help="启用能量冲击计算"
+    )
+    
+    parser.add_argument(
+        "--save-convolution",
+        action='store_true',
+        default=False,
+        help="保存卷积计算结果 (.npz)"
+    )
+    
     return parser
 
 
@@ -212,10 +233,20 @@ def parse_args(args=None) -> ProcessingConfig:
     plot_surface = not parsed.plot_scatter
     
     # 处理xpoints
-    xpoints = None
+    xpoints = []
     if parsed.xpoints is not None:
-        import numpy as np
         xpoints = np.array(parsed.xpoints, dtype=float).reshape(2, -1)
+    elif parsed.device is not None:
+        # 根据设备设置默认xpoints
+        try:
+            # 使用 get_device_geometry 获取默认 xpoints，传入 None 作为 R, Z
+            # 这样不会触发掩膜生成，只返回静态信息
+            device_geom = get_device_geometry(parsed.device, None, None, debug=parsed.debug)
+            xpoints = device_geom.xpoints
+        except Exception as e:
+            if parsed.debug:
+                print(f"[Config] Failed to get default xpoints for {parsed.device}: {e}")
+            xpoints = None
     
     return ProcessingConfig(
         file_path=parsed.file,
@@ -231,7 +262,9 @@ def parse_args(args=None) -> ProcessingConfig:
         find_max=parsed.find_max,
         output_dir=parsed.output_dir,
         xpoints=xpoints,
-        debug=parsed.debug
+        debug=parsed.debug,
+        energy_impact=parsed.energy_impact,
+        save_convolution=parsed.save_convolution
     )
 
 
@@ -245,18 +278,20 @@ def create_debug_config() -> ProcessingConfig:
         调试配置对象
     """
     return ProcessingConfig(
-        file_path='/home/ac_desktop/syncfiles/postproc_145/boundary_quantities_s04200.dat',
-        timesteps=['4200'],
-        iplane=1080,
-        data_name='heatF_tot_cd',
+        file_path='/home/ac_desktop/syncfiles/postproc_152_new/boundary_quantities_s05000.dat',
+        timesteps=['5000', '6000'],
+        iplane=32,
+        data_name='heatF_total',
         device='EXL50U',
-        data_limits=[1e5, 3e8],
+        data_limits=[1e5, 3e9],
         norm_factor=4.1006E-07,
         plot_surface=True,
         plot_overall=False,
         log_norm=True,
         find_max=False,
         output_dir=None,
-        xpoints=None,
-        debug=True
+        xpoints= [0.73,  -0.877, 0.73,   0.877],
+        debug=True,
+        energy_impact=False,
+        save_convolution=False
     )

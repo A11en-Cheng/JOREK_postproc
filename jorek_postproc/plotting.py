@@ -92,11 +92,11 @@ def plot_scatter_3d(
     
     # 设置坐标轴
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
-    cbar.set_label(data.data_name, rotation=270, labelpad=15)
+    # cbar.set_label(data.data_name, rotation=270, labelpad=15)
     ax.set_aspect('equalxz')
-    ax.set_xlabel('R Axis', fontsize=10)
-    ax.set_ylabel('Phi Axis', fontsize=10)
-    ax.set_zlabel('Z Axis', fontsize=10)
+    ax.set_xlabel(fr'$R$ Axis', fontsize=10)
+    ax.set_ylabel(fr'$\phi$ Axis', fontsize=10)
+    ax.set_zlabel(fr'$Z$ Axis', fontsize=10)
     ax.view_init(elev=view_angle[0], azim=view_angle[1])
     
     # 保存或显示
@@ -193,7 +193,10 @@ def plot_surface_3d(
         'antialiased': False,
         'shade': False
     }
-    
+    if debug:
+        kwargs['rcount'] = 32
+        kwargs['ccount'] = n_pol
+        # kwargs['antialiased'] = True
     sc = ax.plot_surface(
         R_plot, phi_plot, Z_plot,
         facecolors=cm.get_cmap(config.cmap)(norm(data_plot)),
@@ -209,10 +212,10 @@ def plot_surface_3d(
     # 设置坐标轴
     ax.set_aspect('equalxz')
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
-    cbar.set_label(data.data_name, rotation=270, labelpad=15)
-    ax.set_xlabel('R Axis', fontsize=10)
-    ax.set_ylabel('Phi Axis', fontsize=10)
-    ax.set_zlabel('Z Axis', fontsize=10)
+    #cbar.set_label(data.data_name, rotation=270, labelpad=15)
+    ax.set_xlabel(fr'$R$ Axis', fontsize=10)
+    ax.set_ylabel(fr'$\phi$ Axis', fontsize=10)
+    ax.set_zlabel(fr'$Z$ Axis', fontsize=10)
     ax.view_init(elev=view_angle[0], azim=view_angle[1])
     
     # 保存或显示
@@ -249,16 +252,17 @@ def plot_max_point(R, Z, phi, val, ax):
     # 计算重心 (忽略NaN)
     centroid_R = np.nanmean(R_flat)
     centroid_Z = np.nanmean(Z_flat)
-
+    centroid_R = 0.8
+    centroid_Z = 0.0
     # 计算从重心指向最大值的向量
     vec_R = max_R - centroid_R
     vec_Z = max_Z - centroid_Z
     
     # 适当向外延伸 (例如1.1倍距离)
-    scale = 1.1
+    scale = 1.01
     plot_R = centroid_R + vec_R * scale
     plot_Z = centroid_Z + vec_Z * scale
 
     ax.scatter([plot_R], [max_phi], [plot_Z], color='red', s=40,
                label=f'Max: {max_value:.2e}')
-    ax.legend()
+    #ax.legend()

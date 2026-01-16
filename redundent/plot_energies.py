@@ -7,7 +7,7 @@ import numpy as np
 import os
 import re
 
-def plot_dat_file(file_path, log_y=False, x_limit=None, si_index=None, Xpt_loc=[], Right_legend=False):
+def plot_dat_file(file_path, log_y=False, x_limit=None, si_index=None, Xpt_loc=[], Right_legend=False,tex=False):
     """
     读取带表头的 .dat 文件并绘制所有数据列对比第一列(Time)。
     
@@ -63,14 +63,14 @@ def plot_dat_file(file_path, log_y=False, x_limit=None, si_index=None, Xpt_loc=[
     sns.set_context("notebook", font_scale=1.2)
     sns.set_style("ticks")
     
-    fig, ax = plt.subplots(figsize=(8, 6), dpi=200)
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
 
     # 4. 自动生成配色
     # 使用 'husl' 调色板，根据由多少列数据自动分配颜色
     colors = sns.color_palette(None, len(y_cols))
 
     print(f"正在绘制 {len(y_cols)} 条数据曲线...")
-
+    texts=['Injection','Removal']
     # 5. 循环绘制每一列
     for i, col_name in enumerate(y_cols):
         # 提取数据
@@ -82,20 +82,27 @@ def plot_dat_file(file_path, log_y=False, x_limit=None, si_index=None, Xpt_loc=[
         y_data = df[col_name]
         
         # 绘图
-        ax.plot(x_data, y_data, 
-                label=col_name, 
-                color=colors[i], 
-                linewidth=3, 
-                alpha=0.8) # 保持通透感
+        if tex:
+            ax.plot(x_data, y_data, 
+                    label=fr"${col_name}$", 
+                    color=colors[i], 
+                    linewidth=3, 
+                    alpha=0.8) # 保持通透感
+        else:
+            ax.plot(x_data, y_data, 
+                    label=f"{col_name}", 
+                    color=colors[i], 
+                    linewidth=3, 
+                    alpha=0.8) # 保持通透感
 
     if Xpt_loc is not []:
-        for xpt in Xpt_loc:
+        for i,xpt in enumerate(Xpt_loc):
             if type(xpt) is list:
                 ax.axvline(x=xpt[0], color='red', linestyle='--', linewidth=2)
                 if log_y:
-                    ax.text(xpt[0]*1.001, xpt[1], f't={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
+                    ax.text(xpt[0]*1.002, xpt[1], f'{texts[i]}: t={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
                 else:
-                    ax.text(xpt[0]*1.001, xpt[1], f't={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
+                    ax.text(xpt[0]*1.002, xpt[1], f'{texts[i]}: t={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
             else:
                 ax.axvline(x=xpt, color='red', linestyle='--', linewidth=2)
                 if log_y:
@@ -166,6 +173,7 @@ if __name__ == "__main__":
     # 模式 B: 对数坐标 (log_y=True) -> 推荐用于观察 E-14 这种小数值
     #Xpt_loc = [[3.1590,0.01],[3.5723,0.01]]
     #Xpt_loc = [3.1590,3.5723]
-    Xpt_loc = [[4.8372,1e-10],[4.9173,1e-10]]
-    plot_dat_file("/home/ac_desktop/syncfiles/energies.dat", log_y=True, si_index=4.1006E-07, Xpt_loc=Xpt_loc, Right_legend = True)
-    
+    # Xpt_loc = [[2.89,25e-5],[3.23,25e-5]]
+    Xpt_loc = [[4.584,8e-4],[4.924,8e-4]]
+    plot_dat_file("/home/ac_desktop/syncfiles/energies.dat", log_y=False, si_index=4.1006E-07, Xpt_loc=Xpt_loc, Right_legend = True, tex=True)
+    # plot_dat_file("/home/ac_desktop/XL50-U/XL50-U_1.4.5/energies.dat", log_y=False, si_index=4.1006E-07, Xpt_loc=Xpt_loc, Right_legend = True)

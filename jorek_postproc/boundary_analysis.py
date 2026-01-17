@@ -81,6 +81,10 @@ def run_boundary_analysis(conf: cfg.ProcessingConfig):
                 debug=conf.debug
             )
             
+            # Assign time if available
+            if t_mapping and ts_str in t_mapping:
+                grid_data.time = t_mapping[ts_str]*conf.norm_factor
+            
             # Additional check for theta
             if grid_data.theta is None:
                 print("  ! Warning: Theta data missing. plot_set requires theta.")

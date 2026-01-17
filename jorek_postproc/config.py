@@ -138,7 +138,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-nf", "--norm-factor",
         type=float,
-        default=None,
+        default=4.1006E-07,
         help="归一化因子 (e.g., 单位转换系数)"
     )
     

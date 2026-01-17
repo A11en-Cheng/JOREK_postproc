@@ -94,9 +94,9 @@ def plot_scatter_3d(
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
     # cbar.set_label(data.data_name, rotation=270, labelpad=15)
     ax.set_aspect('equalxz')
-    ax.set_xlabel(fr'$R$ Axis', fontsize=10)
-    ax.set_ylabel(fr'$\phi$ Axis', fontsize=10)
-    ax.set_zlabel(fr'$Z$ Axis', fontsize=10)
+    ax.set_xlabel(fr'$R$ Axis', fontsize=14)
+    ax.set_ylabel(fr'$\phi$ Axis', fontsize=14)
+    ax.set_zlabel(fr'$Z$ Axis', fontsize=14)
     ax.view_init(elev=view_angle[0], azim=view_angle[1])
     
     # 保存或显示
@@ -296,6 +296,11 @@ def plot_heat_flux_analysis(
         if debug: print("[Plotting] Warning: No theta data available, cannot plot phi-theta map.")
         return
 
+    if debug:
+        print("[Plotting] Generating heat flux analysis plots...")
+        print(f"  Data shape: R{data.R.shape}, Z{data.Z.shape}, phi{data.phi.shape}, theta{data.theta.shape}, data{data.data.shape}")
+        print(f"  Data range: [{data.data.min():.2e}, {data.data.max():.2e}]")
+        print(f"  theta range: [{data.theta.min():.2e}, {data.theta.max():.2e}]")
     # 创建画布
     plt.rcParams.update({'font.size': 14}) # 增大字体
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), dpi=200)
@@ -312,8 +317,8 @@ def plot_heat_flux_analysis(
             
         ax1.plot(R_pol, Z_pol, 'k-', linewidth=1.5, alpha=0.6, label='Boundary')
         ax1.set_aspect('equal')
-        ax1.set_xlabel(r'$R$ [m]')
-        ax1.set_ylabel(r'$Z$ [m]')
+        ax1.set_xlabel(r'$R$ [m]',fontsize=14)
+        ax1.set_ylabel(r'$Z$ [m]',fontsize=14)
         # ax1.set_title(f'Poloidal Cross-section')
         ax1.grid(True, alpha=0.3)
 
@@ -334,7 +339,7 @@ def plot_heat_flux_analysis(
                         c_r = np.mean(R_pol[mask_pol])
                         c_z = np.mean(Z_pol[mask_pol])
                         ax1.text(c_r, c_z, reg['label'], color=reg['color'], 
-                                 fontweight='bold', fontsize=12, ha='center', va='center',
+                                 fontweight='bold', fontsize=14, ha='center', va='center',
                                  bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1))
 
     except Exception as e:
@@ -352,6 +357,11 @@ def plot_heat_flux_analysis(
     val = data.data 
     # val shape: (N_phi, N_theta)
     
+    # Sort theta to ensure monotonicity for pcolormesh
+    sort_idx = np.argsort(theta_axis)
+    theta_axis = theta_axis[sort_idx]
+    val = val[:, sort_idx]
+
     if config.data_limits:
         val = np.clip(val, config.data_limits[0], config.data_limits[1])
         
@@ -363,7 +373,7 @@ def plot_heat_flux_analysis(
     # pcolormesh(X, Y, C)
     # X: Phi (N_phi), Y: Theta (N_theta), C: (N_theta, N_phi) -> Transpose val
     mesh = ax2.pcolormesh(phi_axis, theta_axis, val.T, 
-                          cmap='viridis', norm=norm, shading='auto') 
+                          cmap='viridis', norm=norm, shading='gouraud') 
     
     # 标记区域框
     if regions:
@@ -375,7 +385,12 @@ def plot_heat_flux_analysis(
                 # 取 mask[0, :] 即可
                 mask_pol = reg['mask'][0, :]
                 if np.any(mask_pol):
-                    thetas_in_region = theta_axis[mask_pol]
+                    # Only calculate theta range, no need to sort here as min/max are robust
+                    # But we should rely on the original theta values for range logic?
+                    # The mask is boolean on the ORIGINAL index.
+                    # We need the theta values corresponding to that mask.
+                    original_theta = data.theta[0, :]
+                    thetas_in_region = original_theta[mask_pol]
                     t_min = np.min(thetas_in_region)
                     t_max = np.max(thetas_in_region)
                     
@@ -393,15 +408,15 @@ def plot_heat_flux_analysis(
                     ax2.text(phi_axis.max(), (t_min + t_max)/2, f" {reg['label']}", 
                              color=reg['color'], va='center', fontweight='bold')
 
-    cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name)
+    cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name, fontsize=14)
     ax2.set_aspect('equal') # 强制等比例
-    ax2.set_xlabel(r'$\phi$ (Toroidal Angle)')
-    ax2.set_ylabel(r'$\theta$ (Poloidal Angle)')
+    ax2.set_xlabel(r'$\phi$ (Toroidal Angle)', fontsize=14)
+    ax2.set_ylabel(r'$\theta$ (Poloidal Angle)', fontsize=14)
     
     title_str = f'Heat Flux'
     if data.time:
-        title_str += f' (t={data.time:.4f}s)'
-    ax2.set_title(title_str)
+        title_str += f' (t={data.time*1e3:.4f}ms)'
+    ax2.set_title(title_str, fontsize=16)
     
     # 调整显示范围
     ax2.set_xlim(phi_axis.min(), phi_axis.max())

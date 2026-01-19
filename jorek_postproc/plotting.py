@@ -94,9 +94,9 @@ def plot_scatter_3d(
     cbar = fig.colorbar(sm, ax=ax, pad=0.1)
     # cbar.set_label(data.data_name, rotation=270, labelpad=15)
     ax.set_aspect('equalxz')
-    ax.set_xlabel(fr'$R$ Axis', fontsize=14)
-    ax.set_ylabel(fr'$\phi$ Axis', fontsize=14)
-    ax.set_zlabel(fr'$Z$ Axis', fontsize=14)
+    ax.set_xlabel(fr'$R$ Axis', fontsize=16)
+    ax.set_ylabel(fr'$\phi$ Axis', fontsize=16)
+    ax.set_zlabel(fr'$Z$ Axis', fontsize=16)
     ax.view_init(elev=view_angle[0], azim=view_angle[1])
     
     # 保存或显示
@@ -302,7 +302,7 @@ def plot_heat_flux_analysis(
         print(f"  Data range: [{data.data.min():.2e}, {data.data.max():.2e}]")
         print(f"  theta range: [{data.theta.min():.2e}, {data.theta.max():.2e}]")
     # 创建画布
-    plt.rcParams.update({'font.size': 14}) # 增大字体
+    plt.rcParams.update({'font.size': 16}) # 增大字体
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), dpi=200)
 
     # --- 左图：R-Z 边界轮廓 (取 phi=0 的截面) ---
@@ -317,8 +317,8 @@ def plot_heat_flux_analysis(
             
         ax1.plot(R_pol, Z_pol, 'k-', linewidth=1.5, alpha=0.6, label='Boundary')
         ax1.set_aspect('equal')
-        ax1.set_xlabel(r'$R$ [m]',fontsize=14)
-        ax1.set_ylabel(r'$Z$ [m]',fontsize=14)
+        ax1.set_xlabel(r'$R$ [m]',fontsize=16)
+        ax1.set_ylabel(r'$Z$ [m]',fontsize=16)
         # ax1.set_title(f'Poloidal Cross-section')
         ax1.grid(True, alpha=0.3)
 
@@ -339,7 +339,7 @@ def plot_heat_flux_analysis(
                         c_r = np.mean(R_pol[mask_pol])
                         c_z = np.mean(Z_pol[mask_pol])
                         ax1.text(c_r, c_z, reg['label'], color=reg['color'], 
-                                 fontweight='bold', fontsize=14, ha='center', va='center',
+                                 fontweight='bold', fontsize=16, ha='center', va='center',
                                  bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1))
 
     except Exception as e:
@@ -406,17 +406,17 @@ def plot_heat_flux_analysis(
                     
                     # 标注文字
                     ax2.text(phi_axis.max(), (t_min + t_max)/2, f" {reg['label']}", 
-                             color=reg['color'], va='center', fontweight='bold')
+                             color=reg['color'], va='center', fontweight='bold', fontsize=16)
 
-    cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name, fontsize=14)
+    cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name)
     ax2.set_aspect('equal') # 强制等比例
-    ax2.set_xlabel(r'$\phi$ (Toroidal Angle)', fontsize=14)
-    ax2.set_ylabel(r'$\theta$ (Poloidal Angle)', fontsize=14)
+    ax2.set_xlabel(r'$\phi$ (Toroidal Angle)', fontsize=16)
+    ax2.set_ylabel(r'$\theta$ (Poloidal Angle)', fontsize=16)
     
     title_str = f'Heat Flux'
     if data.time:
         title_str += f' (t={data.time*1e3:.4f}ms)'
-    ax2.set_title(title_str, fontsize=16)
+    ax2.set_title(title_str, fontsize=18)
     
     # 调整显示范围
     ax2.set_xlim(phi_axis.min(), phi_axis.max())

@@ -109,7 +109,7 @@ def run_boundary_analysis(conf: cfg.ProcessingConfig):
         
         # Output directory
         if conf.output_dir is None:
-            output_dir = f"output_analysis_{conf.device}_{ts_str}"
+            output_dir = f"output_analysis_{conf.device}"
         else:
             output_dir = conf.output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -145,7 +145,8 @@ def run_boundary_analysis(conf: cfg.ProcessingConfig):
                 # else: could add generic masks here if needed
         
         save_path = os.path.join(output_dir, f'plot_set_{conf.data_name}_{ts_str}.png')
-        
+        if conf.log_norm:
+            save_path = os.path.join(output_dir, f'plot_set_{conf.data_name}_{ts_str}_log.png')
         try:
             plot_set(
                 data=grid_data,

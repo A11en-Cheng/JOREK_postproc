@@ -303,124 +303,136 @@ def plot_heat_flux_analysis(
         print(f"  theta range: [{data.theta.min():.2e}, {data.theta.max():.2e}]")
     # 创建画布
     plt.rcParams.update({'font.size': 16}) # 增大字体
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), dpi=200)
+    
+    # 确定子图布局
+    if config.show_left_plot and config.show_right_plot:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), dpi=200)
+    elif config.show_left_plot:
+        fig, ax1 = plt.subplots(1, 1, figsize=(8, 10), dpi=200)
+        ax2 = None
+    elif config.show_right_plot:
+        fig, ax2 = plt.subplots(1, 1, figsize=(10, 8), dpi=200)
+        ax1 = None
+    else:
+        if debug: print("[Plotting] No plots selected, skipping.")
+        return
 
     # --- 左图：R-Z 边界轮廓 (取 phi=0 的截面) ---
-    try:
-        if data.is_2d_grid():
-            R_pol = data.R[0, :]
-            Z_pol = data.Z[0, :]
-            theta_pol = data.theta[0, :]
-        else:
-            if debug: print("Data is not grid, skipping R-Z plot")
-            return
-            
-        ax1.plot(R_pol, Z_pol, 'k-', linewidth=1.5, alpha=0.6, label='Boundary')
-        ax1.set_aspect('equal')
-        ax1.set_xlabel(r'$R$ [m]',fontsize=16)
-        ax1.set_ylabel(r'$Z$ [m]',fontsize=16)
-        # ax1.set_title(f'Poloidal Cross-section')
-        ax1.grid(True, alpha=0.3)
+    if ax1 is not None:
+        try:
+            if data.is_2d_grid():
+                R_pol = data.R[0, :]
+                Z_pol = data.Z[0, :]
+                theta_pol = data.theta[0, :]
+            else:
+                if debug: print("Data is not grid, skipping R-Z plot")
+                if ax2 is None: return # nothing to plot
+                
+            ax1.plot(R_pol, Z_pol, 'gray', linewidth=1.5, alpha=0.9, label='Boundary') # Changed to gray
+            ax1.set_aspect('equal')
+            ax1.set_xlabel(r'$R$ [m]',fontsize=16)
+            ax1.set_ylabel(r'$Z$ [m]',fontsize=16)
+            # ax1.set_title(f'Poloidal Cross-section')
+            ax1.grid(True, alpha=0.3)
 
-        if regions:
-            for reg in regions:
-                # 左图：绘制区域对应的线段 (取第一圈 phi=0 对应的 mask)
-                # mask 形状假设为 (N_phi, N_pol)，取 [0, :]
-                if 'mask' in reg:
-                    mask_pol = reg['mask'][0, :]
-                    
-                    # 更好的方法：分段绘制
-                    # 但为了简单，先画点，点够密就是线
-                    ax1.plot(R_pol[mask_pol], Z_pol[mask_pol], 
-                             color=reg['color'], linewidth=3, label=reg['label'])
-                    
-                    # 标注文字 (在区域中心)
-                    if np.any(mask_pol):
-                        c_r = np.mean(R_pol[mask_pol])
-                        c_z = np.mean(Z_pol[mask_pol])
-                        ax1.text(c_r, c_z, reg['label'], color=reg['color'], 
-                                 fontweight='bold', fontsize=16, ha='center', va='center',
-                                 bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1))
+            if regions:
+                for reg in regions:
+                    # 左图：绘制区域对应的线段 (取第一圈 phi=0 对应的 mask)
+                    # mask 形状假设为 (N_phi, N_pol)，取 [0, :]
+                    if 'mask' in reg:
+                        mask_pol = reg['mask'][0, :]
+                        
+                        # 更好的方法：分段绘制
+                        # 但为了简单，先画点，点够密就是线
+                        ax1.plot(R_pol[mask_pol], Z_pol[mask_pol], 
+                                color=reg['color'], linewidth=3, label=reg['label'])
+                        
+                        # 标注文字 (在区域中心)
+                        if np.any(mask_pol):
+                            c_r = np.mean(R_pol[mask_pol])
+                            c_z = np.mean(Z_pol[mask_pol])
+                            # Shift label slightly based on position
+                            offset_r = 0.05 if c_r > 0.8 else -0.05
+                            ax1.text(c_r, c_z, reg['label'], color=reg['color'], 
+                                    fontweight='bold', fontsize=12, ha='center', va='center', # Smaller font
+                                    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1))
 
-    except Exception as e:
-        if debug: 
-            print(f"Error plotting R-Z contour: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception as e:
+            if debug: 
+                print(f"Error plotting R-Z contour: {e}")
+                import traceback
+                traceback.print_exc()
 
     # --- 右图：Phi-Theta 热流分布 ---
-    # 转置坐标系：Phi -> X, Theta -> Y
-    
-    phi_axis = data.phi[:, 0]
-    theta_axis = data.theta[0, :] 
-    
-    val = data.data 
-    # val shape: (N_phi, N_theta)
-    
-    # Sort theta to ensure monotonicity for pcolormesh
-    sort_idx = np.argsort(theta_axis)
-    theta_axis = theta_axis[sort_idx]
-    val = val[:, sort_idx]
-
-    if config.data_limits:
-        val = np.clip(val, config.data_limits[0], config.data_limits[1])
+    if ax2 is not None:
+        # 转置坐标系：Phi -> X, Theta -> Y
         
-    if config.log_norm:
-        norm = LogNorm(vmin=np.nanmin(val[val>0]), vmax=np.nanmax(val))
-    else:
-        norm = plt.Normalize(vmin=np.nanmin(val), vmax=np.nanmax(val))
+        phi_axis = data.phi[:, 0]
+        theta_axis = data.theta[0, :] 
     
-    # pcolormesh(X, Y, C)
-    # X: Phi (N_phi), Y: Theta (N_theta), C: (N_theta, N_phi) -> Transpose val
-    mesh = ax2.pcolormesh(phi_axis, theta_axis, val.T, 
-                          cmap='viridis', norm=norm, shading='gouraud') 
-    
-    # 标记区域框
-    if regions:
-        for reg in regions:
-            if 'mask' in reg:
-                # 找出该区域对应的 theta 范围
-                # 只要该 mask 在任意 phi 处为 True，就算入范围？
-                # 通常 geometry mask 是axisymmetric定义的，所以对所有 phi 一样
-                # 取 mask[0, :] 即可
-                mask_pol = reg['mask'][0, :]
-                if np.any(mask_pol):
-                    # Only calculate theta range, no need to sort here as min/max are robust
-                    # But we should rely on the original theta values for range logic?
-                    # The mask is boolean on the ORIGINAL index.
-                    # We need the theta values corresponding to that mask.
-                    original_theta = data.theta[0, :]
-                    thetas_in_region = original_theta[mask_pol]
-                    t_min = np.min(thetas_in_region)
-                    t_max = np.max(thetas_in_region)
-                    
-                    # 绘制矩形框或线
-                    # 在 Theta 轴 (Y轴) 上标记范围
-                    # 绘制半透明矩形覆盖全 Phi
-                    rect = plt.Rectangle((phi_axis.min(), t_min), 
-                                         phi_axis.max() - phi_axis.min(), 
-                                         t_max - t_min,
-                                         edgecolor=reg['color'], facecolor='none', 
-                                         linewidth=2, linestyle='--')
-                    ax2.add_patch(rect)
-                    
-                    # 标注文字
-                    ax2.text(phi_axis.max(), (t_min + t_max)/2, f" {reg['label']}", 
-                             color=reg['color'], va='center', fontweight='bold', fontsize=16)
+        val = data.data 
+        # val shape: (N_phi, N_theta)
+        
+        # Sort theta to ensure monotonicity for pcolormesh
+        sort_idx = np.argsort(theta_axis)
+        theta_axis = theta_axis[sort_idx]
+        val = val[:, sort_idx]
 
-    cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name)
-    ax2.set_aspect('equal') # 强制等比例
-    ax2.set_xlabel(r'$\phi$ (Toroidal Angle)', fontsize=16)
-    ax2.set_ylabel(r'$\theta$ (Poloidal Angle)', fontsize=16)
-    
-    title_str = f'Heat Flux'
-    if data.time:
-        title_str += f' (t={data.time*1e3:.4f}ms)'
-    ax2.set_title(title_str, fontsize=18)
-    
-    # 调整显示范围
-    ax2.set_xlim(phi_axis.min(), phi_axis.max())
-    # ax2.set_ylim(theta_axis.min(), theta_axis.max())
+        if config.data_limits:
+            val = np.clip(val, config.data_limits[0], config.data_limits[1])
+            
+        if config.log_norm:
+            norm = LogNorm(vmin=np.nanmin(val[val>0]), vmax=np.nanmax(val))
+        else:
+            norm = plt.Normalize(vmin=np.nanmin(val), vmax=np.nanmax(val))
+        
+        # pcolormesh(X, Y, C)
+        # X: Phi (N_phi), Y: Theta (N_theta), C: (N_theta, N_phi) -> Transpose val
+        mesh = ax2.pcolormesh(phi_axis, theta_axis, val.T, 
+                              cmap='viridis', norm=norm, shading='gouraud') 
+        
+        # 标记区域框
+        if regions:
+            for reg in regions:
+                if 'mask' in reg:
+                    # 找出该区域对应的 theta 范围
+                    # 只要该 mask 在任意 phi 处为 True，就算入范围？
+                    # 通常 geometry mask 是axisymmetric定义的，所以对所有 phi 一样
+                    # 取 mask[0, :] 即可
+                    mask_pol = reg['mask'][0, :]
+                    if np.any(mask_pol):
+                        # Only calculate theta range, no need to sort here as min/max are robust
+                        # But we should rely on the original theta values for range logic?
+                        # The mask is boolean on the ORIGINAL index.
+                        # We need the theta values corresponding to that mask.
+                        original_theta = data.theta[0, :]
+                        thetas_in_region = original_theta[mask_pol]
+                        t_min = np.min(thetas_in_region)
+                        t_max = np.max(thetas_in_region)
+                        
+                        # 绘制图边粗线段标注范围 (左侧/Minimum Phi)
+                        line_x = phi_axis.min()
+                        ax2.plot([line_x, line_x], [t_min, t_max], 
+                                 color=reg['color'], linewidth=8, solid_capstyle='butt')
+                        
+                        # 标注文字 (文字在内部，靠左对齐，略微右移)
+                        # 为了避免文字在图外被切掉，我们把它放在线段的右侧（图内）
+                        ax2.text(line_x + (phi_axis.max()-phi_axis.min())*0.01, (t_min + t_max)/2, f"{reg['label']}", 
+                                 color=reg['color'], va='center', ha='left', fontweight='bold', fontsize=16)
+
+        cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name)
+        ax2.set_aspect('equal') # 强制等比例
+        ax2.set_xlabel(r'$\phi$ (Toroidal Angle)', fontsize=16)
+        ax2.set_ylabel(r'$\theta$ (Poloidal Angle)', fontsize=16)
+        
+        title_str = f'Heat Flux'
+        if data.time:
+            title_str += f' (t={data.time*1e3:.4f}ms)'
+        ax2.set_title(title_str, fontsize=18)
+        
+        # 调整显示范围
+        ax2.set_xlim(phi_axis.min(), phi_axis.max())
+        # ax2.set_ylim(theta_axis.min(), theta_axis.max())
 
     plt.tight_layout()
     

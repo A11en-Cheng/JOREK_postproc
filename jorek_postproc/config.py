@@ -68,6 +68,8 @@ class ProcessingConfig:
     energy_impact: bool = False
     save_convolution: bool = False
     mode: str = 'standard'
+    show_left_plot: bool = True
+    show_right_plot: bool = True
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -214,12 +216,26 @@ def create_parser() -> argparse.ArgumentParser:
     )
     
     parser.add_argument(
-        "--save-convolution",
+        "--save_convolution",
         action='store_true',
         default=False,
-        help="保存卷积计算结果 (.npz)"
+        help="仅绘制左图 (R-Z)"
     )
     
+    parser.add_argument(
+        "--left-only",
+        action='store_true',
+        default=False,
+        help="仅绘制左图 (R-Z)"
+    )
+    
+    parser.add_argument(
+        "--right-only",
+        action='store_true',
+        default=False,
+        help="仅绘制右图 (Heat Flux)"
+    )
+
     return parser
 
 
@@ -264,6 +280,14 @@ def parse_args(args=None) -> ProcessingConfig:
     if parsed.energy_impact:
         mode = 'energy_impact'
     
+    # Handle plot selection flags
+    show_left = True
+    show_right = True
+    if parsed.left_only:
+        show_right = False
+    if parsed.right_only:
+        show_left = False
+
     return ProcessingConfig(
         file_path=parsed.file,
         timesteps=parsed.timesteps,
@@ -281,7 +305,9 @@ def parse_args(args=None) -> ProcessingConfig:
         debug=parsed.debug,
         energy_impact=(mode == 'energy_impact'),
         save_convolution=parsed.save_convolution,
-        mode=mode
+        mode=mode,
+        show_left_plot=show_left,
+        show_right_plot=show_right
     )
 
 

@@ -116,3 +116,5 @@ class PlottingConfig:
     dpi: int = 300
     data_limits: Optional[List[float]] = None
     find_max: bool = True
+    show_left_plot: bool = True
+    show_right_plot: bool = True

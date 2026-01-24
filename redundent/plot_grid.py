@@ -77,7 +77,7 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
         for line_data in grid_lines:
             ax.plot(line_data[:, 0], line_data[:, 1], 
                     color='#2c3e50',  # 深灰蓝色
-                    linewidth=0.8,    # 细线
+                    linewidth=0.7,    # 细线
                     alpha=0.5)        # 半透明
 
     # 3. 绘制边界 (Boundaries)
@@ -86,13 +86,14 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
     boundaries = ['Real PFCs','JOREK simulation boundary']
     for i, b_file in enumerate(boundary_files):
         b_data = load_boundary(b_file)
+        linestyles = ['-', '--', '-.']  
         if b_data is not None:
             color = boundary_colors[i % len(boundary_colors)]
             ax.plot(b_data[:, 0], b_data[:, 1],
                     label=f"{boundaries[i]}",
                     color=color,
-                    linewidth=1.5, # 边界线加粗
-                    linestyle='-')
+                    linewidth=2, # 边界线加粗
+                    linestyle=linestyles[i])
 
     # 4. 关键设置：等比例缩放
     # 这一步对于物理网格至关重要，否则圆形会变成椭圆

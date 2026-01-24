@@ -119,7 +119,9 @@ def run_boundary_analysis(conf: cfg.ProcessingConfig):
             cmap='viridis', # Better for heat flux usually
             dpi=300,
             data_limits=conf.data_limits,
-            find_max=conf.find_max
+            find_max=conf.find_max,
+            show_left_plot=conf.show_left_plot,
+            show_right_plot=conf.show_right_plot
         )
         
         # Define regions based on device geometry masks
@@ -144,9 +146,18 @@ def run_boundary_analysis(conf: cfg.ProcessingConfig):
                     })
                 # else: could add generic masks here if needed
         
-        save_path = os.path.join(output_dir, f'plot_set_{conf.data_name}_{ts_str}.png')
+        # Determine filename suffix based on plot selection
+        suffix = ""
+        if conf.show_left_plot and not conf.show_right_plot:
+            suffix = "_left"
+        elif not conf.show_left_plot and conf.show_right_plot:
+            suffix = "_right"
+
         if conf.log_norm:
-            save_path = os.path.join(output_dir, f'plot_set_{conf.data_name}_{ts_str}_log.png')
+            suffix += "_log"
+
+        save_path = os.path.join(output_dir, f'plot_set_{conf.data_name}_{ts_str}{suffix}.png')
+
         try:
             plot_set(
                 data=grid_data,

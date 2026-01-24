@@ -484,6 +484,7 @@ def reshape_to_grid(
     Phi_slices = []
     Val_slices = []
     Theta_slices = []
+    Len_slices = []
     points_per_slice = []
 
     # 3. 遍历每个 Phi 切面进行 R-Z 排序
@@ -645,13 +646,21 @@ def reshape_to_grid(
                 t_sorted = np.concatenate((t_up, t_dn))
             else:
                 t_sorted = None
-            # --------------------------------
             
+            # --- Calculate Arc Length ---
+            dr = np.diff(r_sorted, prepend=r_sorted[0])
+            dz = np.diff(z_sorted, prepend=z_sorted[0])
+            dist = np.sqrt(dr**2 + dz**2)
+            dist[0] = 0
+            len_sorted = np.cumsum(dist)
+            # ----------------------------
+
             R_slices.append(r_sorted)
             Z_slices.append(z_sorted)
             Phi_slices.append(np.full_like(r_sorted, current_phi))
             Val_slices.append(v_sorted)
             if has_theta: Theta_slices.append(t_sorted)
+            Len_slices.append(len_sorted)
             
             points_per_slice.append(len(r_sorted))
         
@@ -693,11 +702,20 @@ def reshape_to_grid(
             if has_theta: t_sorted = extras[0]
             # --------------------------------
             
+            # --- Calculate Arc Length ---
+            dr = np.diff(r_sorted, prepend=r_sorted[0])
+            dz = np.diff(z_sorted, prepend=z_sorted[0])
+            dist = np.sqrt(dr**2 + dz**2)
+            dist[0] = 0
+            len_sorted = np.cumsum(dist)
+            # ----------------------------
+
             R_slices.append(r_sorted)
             Z_slices.append(z_sorted)
             Phi_slices.append(np.full_like(r_sorted, current_phi))
             Val_slices.append(v_sorted)
             if has_theta: Theta_slices.append(t_sorted)
+            Len_slices.append(len_sorted)
             
             points_per_slice.append(len(r_sorted))
 
@@ -713,6 +731,7 @@ def reshape_to_grid(
             Phi_slices[i] = Phi_slices[i][:min_points]
             Val_slices[i] = Val_slices[i][:min_points]
             if has_theta: Theta_slices[i] = Theta_slices[i][:min_points]
+            Len_slices[i] = Len_slices[i][:min_points]
     
     # 5. 堆叠成 2D 矩阵 (N_phi x N_poloidal)
     R_grid = np.vstack(R_slices)
@@ -720,6 +739,7 @@ def reshape_to_grid(
     Phi_grid = np.vstack(Phi_slices)
     Val_grid = np.vstack(Val_slices)
     Theta_grid = np.vstack(Theta_slices) if has_theta else None
+    Len_grid = np.vstack(Len_slices)
     
     if debug:
         print(f"[Reshaping] Reshaped grid size: {R_grid.shape}")
@@ -731,6 +751,7 @@ def reshape_to_grid(
         data=Val_grid,
         data_name=val_col_name,
         grid_shape=R_grid.shape,
-        theta=Theta_grid
+        theta=Theta_grid,
+        arc_length=Len_grid
     )
 

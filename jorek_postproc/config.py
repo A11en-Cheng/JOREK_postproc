@@ -70,6 +70,7 @@ class ProcessingConfig:
     mode: str = 'standard'
     show_left_plot: bool = True
     show_right_plot: bool = True
+    use_arc_length: bool = False
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -236,6 +237,13 @@ def create_parser() -> argparse.ArgumentParser:
         help="仅绘制右图 (Heat Flux)"
     )
 
+    parser.add_argument(
+        "--use-arc-length",
+        action='store_true',
+        default=False,
+        help="使用边界几何长度 (Arc Length) 替换 Theta 坐标"
+    )
+
     return parser
 
 
@@ -307,7 +315,8 @@ def parse_args(args=None) -> ProcessingConfig:
         save_convolution=parsed.save_convolution,
         mode=mode,
         show_left_plot=show_left,
-        show_right_plot=show_right
+        show_right_plot=show_right,
+        use_arc_length=parsed.use_arc_length
     )
 
 

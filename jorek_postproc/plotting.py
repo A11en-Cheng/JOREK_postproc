@@ -366,16 +366,25 @@ def plot_heat_flux_analysis(
     # --- 右图：Phi-Theta 热流分布 ---
     if ax2 is not None:
         # 转置坐标系：Phi -> X, Theta -> Y
-        
         phi_axis = data.phi[:, 0]
-        theta_axis = data.theta[0, :] 
+        
+        # Determine Y-axis (Theta or Arc Length)
+        use_len = config.use_arc_length and data.arc_length is not None
+        if use_len:
+            if debug: print("[Plotting] Using Arc Length for Y-axis")
+            y_axis_raw = data.arc_length[0, :]
+            y_label = r'Length [m]'
+        else:
+            if debug: print("[Plotting] Using Theta for Y-axis")
+            y_axis_raw = data.theta[0, :] 
+            y_label = r'$\theta$ (Poloidal Angle)'
     
         val = data.data 
         # val shape: (N_phi, N_theta)
         
-        # Sort theta to ensure monotonicity for pcolormesh
-        sort_idx = np.argsort(theta_axis)
-        theta_axis = theta_axis[sort_idx]
+        # Sort y-axis to ensure monotonicity for pcolormesh
+        sort_idx = np.argsort(y_axis_raw)
+        y_axis_sorted = y_axis_raw[sort_idx]
         val = val[:, sort_idx]
 
         if config.data_limits:
@@ -388,42 +397,42 @@ def plot_heat_flux_analysis(
         
         # pcolormesh(X, Y, C)
         # X: Phi (N_phi), Y: Theta (N_theta), C: (N_theta, N_phi) -> Transpose val
-        mesh = ax2.pcolormesh(phi_axis, theta_axis, val.T, 
+        mesh = ax2.pcolormesh(phi_axis, y_axis_sorted, val.T, 
                               cmap='viridis', norm=norm, shading='gouraud') 
         
         # 标记区域框
         if regions:
             for reg in regions:
                 if 'mask' in reg:
-                    # 找出该区域对应的 theta 范围
-                    # 只要该 mask 在任意 phi 处为 True，就算入范围？
-                    # 通常 geometry mask 是axisymmetric定义的，所以对所有 phi 一样
-                    # 取 mask[0, :] 即可
+                    # 找出该区域对应的 Y 轴范围
                     mask_pol = reg['mask'][0, :]
                     if np.any(mask_pol):
-                        # Only calculate theta range, no need to sort here as min/max are robust
-                        # But we should rely on the original theta values for range logic?
-                        # The mask is boolean on the ORIGINAL index.
-                        # We need the theta values corresponding to that mask.
-                        original_theta = data.theta[0, :]
-                        thetas_in_region = original_theta[mask_pol]
-                        t_min = np.min(thetas_in_region)
-                        t_max = np.max(thetas_in_region)
+                        # Use UNSORTED original Y data to match mask indices
+                        y_vals_in_region = y_axis_raw[mask_pol]
+                        y_min = np.min(y_vals_in_region)
+                        y_max = np.max(y_vals_in_region)
                         
                         # 绘制图边粗线段标注范围 (左侧/Minimum Phi)
                         line_x = phi_axis.min()
-                        ax2.plot([line_x, line_x], [t_min, t_max], 
+                        ax2.plot([line_x, line_x], [y_min, y_max], 
                                  color=reg['color'], linewidth=8, solid_capstyle='butt')
                         
                         # 标注文字 (文字在内部，靠左对齐，略微右移)
-                        # 为了避免文字在图外被切掉，我们把它放在线段的右侧（图内）
-                        ax2.text(line_x + (phi_axis.max()-phi_axis.min())*0.01, (t_min + t_max)/2, f"{reg['label']}", 
+                        ax2.text(line_x + (phi_axis.max()-phi_axis.min())*0.01, (y_min + y_max)/2, f"{reg['label']}", 
                                  color=reg['color'], va='center', ha='left', fontweight='bold', fontsize=16)
 
         cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name)
-        ax2.set_aspect('equal') # 强制等比例
+        
+        if use_len:
+            # 保持画面为正方形 (Square Frame)
+            ax2.set_box_aspect(1)
+        else:
+            # Theta 模式不强制正方形，使用默认纵横比
+            # ax2.set_aspect('equal') # Removed
+            pass
+
         ax2.set_xlabel(r'$\phi$ (Toroidal Angle)', fontsize=16)
-        ax2.set_ylabel(r'$\theta$ (Poloidal Angle)', fontsize=16)
+        ax2.set_ylabel(y_label, fontsize=16)
         
         title_str = f'Heat Flux'
         if data.time:

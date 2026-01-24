@@ -45,6 +45,7 @@ class BoundaryQuantitiesData:
     time_step: Optional[str] = None
     grid_shape: Optional[Tuple[int, int]] = None
     theta: Optional[np.ndarray] = None
+    arc_length: Optional[np.ndarray] = None
     
     def is_2d_grid(self) -> bool:
         """检查数据是否已重整化为2D网格格式"""
@@ -118,3 +119,4 @@ class PlottingConfig:
     find_max: bool = True
     show_left_plot: bool = True
     show_right_plot: bool = True
+    use_arc_length: bool = False

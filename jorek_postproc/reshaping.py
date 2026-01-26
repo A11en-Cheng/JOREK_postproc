@@ -401,7 +401,6 @@ def reshape_to_grid(
     block: np.ndarray,
     col_names: List[str],
     names: Tuple[str, str, str, str],
-    iplane: Optional[int] = None,
     xpoints: Optional[np.ndarray] = None,
     debug: bool = False
 ) -> BoundaryQuantitiesData:
@@ -444,7 +443,7 @@ def reshape_to_grid(
     if debug:
         print(f"[Reshaping] Mapping columns: R='{r_col_name}', Z='{z_col_name}', phi='{phi_col_name}', value='{val_col_name}'")
         print(f"[Reshaping] Input block shape: {block.shape}")
-        print(f"[Reshaping] Using iplane={iplane}, xpoints={'provided' if xpoints is not None else 'not provided'}")
+        print(f"[Reshaping] Using xpoints={'provided' if xpoints is not None else 'not provided'}")
     try:
         r_idx = col_names.index(r_col_name)
         z_idx = col_names.index(z_col_name)

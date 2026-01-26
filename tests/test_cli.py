@@ -1,138 +1,79 @@
 """
-测试命令行界面模块
+测试命令行接口
 """
 
 import pytest
-from click.testing import CliRunner
-from jorek_postproc.cli import cli
+import sys
+import subprocess
+from unittest.mock import patch, MagicMock
+from jorek_postproc.cli import main
+import jorek_postproc.config as cfg
 
+class TestCLIExecution:
+    """测试CLI执行流程"""
+    
+    @patch('jorek_postproc.cli.process_single_timestep')
+    def test_standard_mode_call(self, mock_process):
+        """测试标准模式调用"""
+        test_args = ['program', '-f', 'test.dat', '-t', '100', '--dim', '2d']
+        with patch.object(sys, 'argv', test_args):
+            # Mock file check inside config parsing or processing if needed
+            # But parse_args doesn't check file existence, processing func does.
+            # We mock file existence check if it happens in verify_config
+            with patch('os.path.exists', return_value=True):
+                main()
+                
+        assert mock_process.called
+        conf = mock_process.call_args[0][0]
+        assert conf.dim == '2d'
+        assert conf.mode == 'standard'
 
-class TestCLIModule:
-    """测试CLI模块"""
-    
-    @pytest.fixture
-    def runner(self):
-        """CLI测试运行器"""
-        return CliRunner()
-    
-    def test_cli_help(self, runner):
-        """测试CLI帮助命令"""
-        result = runner.invoke(cli, ['--help'])
+    @patch('jorek_postproc.energy_impact.run_energy_impact_analysis')
+    def test_energy_impact_mode_call(self, mock_energy):
+        """测试能量冲击模式调用"""
+        test_args = ['program', '-f', 'test.dat', '-t', '100', '-m', 'energy_impact']
+        with patch.object(sys, 'argv', test_args):
+            with patch('os.path.exists', return_value=True):
+                main()
         
-        assert result.exit_code == 0
-        assert 'Usage:' in result.output or 'help' in result.output.lower()
-    
-    def test_cli_version(self, runner):
-        """测试CLI版本命令"""
-        result = runner.invoke(cli, ['--version'])
-        
-        # 应该输出版本信息或成功退出
-        assert result.exit_code == 0 or 'version' in result.output.lower()
-    
-    def test_cli_invalid_command(self, runner):
-        """测试无效命令"""
-        result = runner.invoke(cli, ['invalid-command'])
-        
-        # 应该失败或给出错误信息
-        assert result.exit_code != 0 or 'Error' in result.output
+        assert mock_energy.called
+        conf = mock_energy.call_args[0][0]
+        assert conf.mode == 'energy_impact'
+
+    @patch('jorek_postproc.boundary_analysis.run_boundary_analysis')
+    def test_plot_set_mode_call(self, mock_boundary):
+        """测试图集模式调用"""
+        test_args = ['program', '-f', 'test.dat', '-t', '100', '--mode', 'plot_set']
+        with patch.object(sys, 'argv', test_args):
+            with patch('os.path.exists', return_value=True):
+                 main()
+                 
+        assert mock_boundary.called
+        conf = mock_boundary.call_args[0][0]
+        # Check defaults logic for plot_set
+        assert conf.dim == '2d' # Config __post_init__ logic
 
 
-class TestCLICommands:
-    """测试CLI命令"""
+class TestCLIIntegration:
+    """集成测试：作为子进程运行"""
     
-    @pytest.fixture
-    def runner(self):
-        """CLI测试运行器"""
-        return CliRunner()
-    
-    def test_cli_with_input_file(self, runner, tmp_data_file):
-        """测试CLI处理输入文件"""
-        # 这取决于CLI的实现
-        # 根据实现情况调整测试
-        result = runner.invoke(cli, ['process', tmp_data_file])
-        
-        # 验证命令执行（可能需要输出文件作为参数）
-        assert result.exit_code in [0, 2]  # 0表示成功，2表示使用错误
-    
-    def test_cli_output_option(self, runner, tmp_data_file):
-        """测试CLI输出选项"""
-        with runner.isolated_filesystem():
-            result = runner.invoke(cli, [
-                'process',
-                tmp_data_file,
-                '--output', 'output.dat'
-            ])
-            
-            # 验证命令执行
-            assert result.exit_code in [0, 2]
+    def test_help_output(self):
+        """测试帮助信息"""
+        result = subprocess.run(
+            [sys.executable, '-m', 'jorek_postproc.cli', '--help'],
+            capture_output=True,
+            text=True
+        )
+        assert result.returncode == 0
+        assert 'usage:' in result.stdout.lower() or 'usage:' in result.stderr.lower()
+        assert '--dim' in result.stdout  # Check for new flags
+        assert '--use_arc_length' in result.stdout
 
-
-class TestCLIArguments:
-    """测试CLI参数"""
-    
-    @pytest.fixture
-    def runner(self):
-        """CLI测试运行器"""
-        return CliRunner()
-    
-    def test_cli_list_devices(self, runner):
-        """测试列出支持的装置"""
-        result = runner.invoke(cli, ['list-devices'])
-        
-        # 应该列出设备或给出帮助信息
-        assert result.exit_code in [0, 2]
-    
-    def test_cli_show_config(self, runner):
-        """测试显示配置"""
-        result = runner.invoke(cli, ['show-config'])
-        
-        # 应该显示配置或给出帮助信息
-        assert result.exit_code in [0, 2]
-
-
-class TestCLIOptions:
-    """测试CLI选项"""
-    
-    @pytest.fixture
-    def runner(self):
-        """CLI测试运行器"""
-        return CliRunner()
-    
-    def test_cli_verbose_option(self, runner):
-        """测试详细输出选项"""
-        result = runner.invoke(cli, ['--verbose', '--help'])
-        
-        assert result.exit_code == 0
-    
-    def test_cli_quiet_option(self, runner):
-        """测试安静模式选项"""
-        result = runner.invoke(cli, ['--quiet', '--help'])
-        
-        assert result.exit_code == 0
-
-
-class TestCLIUsage:
-    """测试CLI使用"""
-    
-    @pytest.fixture
-    def runner(self):
-        """CLI测试运行器"""
-        return CliRunner()
-    
-    def test_cli_usage_message(self, runner):
-        """测试使用消息"""
-        result = runner.invoke(cli, [])
-        
-        # 不带参数应该显示使用信息或失败
-        assert result.exit_code in [0, 2]
-    
-    def test_cli_with_multiple_options(self, runner):
-        """测试多个选项组合"""
-        result = runner.invoke(cli, ['--help', '--verbose'])
-        
-        # 某些组合可能无效，但应该优雅地处理
-        assert result.exit_code in [0, 2, 1]
-
-
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+    def test_missing_args(self):
+        """测试缺少必要参数"""
+        result = subprocess.run(
+            [sys.executable, '-m', 'jorek_postproc.cli'],
+            capture_output=True,
+            text=True
+        )
+        assert result.returncode != 0

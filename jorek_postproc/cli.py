@@ -3,7 +3,7 @@
 
 用法示例：
   python -m jorek_postproc.cli -f boundary_quantities_s04200.dat -t 4200 \\
-      --iplane 1080 -n heatF_tot_cd --log-norm
+      -n heatF_tot_cd --log_norm
 """
 
 import os
@@ -23,7 +23,7 @@ from . import (
     plot_surface_3d,
     PlottingConfig,
 )
-
+from .plotting import plot_heat_flux_analysis
 
 def process_single_timestep(conf: cfg.ProcessingConfig):
     """
@@ -89,7 +89,6 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
             
             grid_data = reshape_to_grid(
                 block_data, col_names, names,
-                iplane=conf.iplane,
                 xpoints=xpoints,
                 debug=conf.debug
             )
@@ -127,13 +126,60 @@ def process_single_timestep(conf: cfg.ProcessingConfig):
             cmap='viridis',
             dpi=300,
             data_limits=conf.data_limits,
-            find_max=conf.find_max
+            find_max=conf.find_max,
+            show_left_plot=conf.show_left_plot,
+            show_right_plot=conf.show_right_plot,
+            use_arc_length=conf.use_arc_length
         )
         
         # 绘制图像
-        print(f"\n绘制图像...")
+        print(f"\n绘制图像 (Dim: {conf.dim if conf.dim else '3d(Default)'})...")
         
-        if conf.plot_overall:
+        if conf.dim == '2d':
+            # 绘制 2D 展开图 (Phi-Theta/ArcLength)
+            
+            # 准备区域标记
+            regions = []
+            if device and device.masks:
+                region_style = {
+                    'mask_UI': {'label': 'IU', 'color': 'red'},
+                    'mask_UO': {'label': 'OU', 'color': 'cyan'},
+                    'mask_LI': {'label': 'IL', 'color': 'green'},
+                    'mask_LO': {'label': 'OL', 'color': 'orange'}
+                }
+                for mask_name, mask_array in device.masks.items():
+                    if mask_name in region_style:
+                        style = region_style[mask_name]
+                        regions.append({
+                            'label': style['label'],
+                            'mask': mask_array,
+                            'color': style['color']
+                        })
+
+            suffix = ""
+            if conf.show_left_plot and not conf.show_right_plot: suffix += "_left"
+            elif not conf.show_left_plot and conf.show_right_plot: suffix += "_right"
+            if conf.use_arc_length: suffix += "_arc"
+            if conf.log_norm: suffix += "_log"
+
+            save_path = os.path.join(output_dir, f'plot_2d_{conf.data_name}_{ts_str}{suffix}.png')
+            
+            try:
+                plot_heat_flux_analysis(
+                    grid_data, 
+                    config=plotting_config, 
+                    save_path=save_path, 
+                    regions=regions, 
+                    debug=conf.debug
+                )
+                print(f"  ✓ 2D展开图已保存: {save_path}")
+            except Exception as e:
+                print(f"  ✗ 2D绘图失败: {e}")
+                if conf.debug: 
+                    import traceback
+                    traceback.print_exc()
+
+        elif conf.plot_overall:
             # 绘制整体视图
             print(f"  绘制整体视图...")
             for view_name, angle in [('front', (30, 30)), ('back', (30, 210))]:
@@ -233,7 +279,6 @@ def main():
                 print(f"[DEBUG] 配置信息：")
                 print(f"  文件：{conf.file_path}")
                 print(f"  时间步：{conf.timesteps}")
-                print(f"  iplane：{conf.iplane}")
                 print(f"  数据：{conf.data_name}")
                 print(f"  设备：{conf.device}")
                 print(f"  模式：{conf.mode}")

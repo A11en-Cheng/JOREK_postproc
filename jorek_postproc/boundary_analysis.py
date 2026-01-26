@@ -76,7 +76,6 @@ def run_boundary_analysis(conf: cfg.ProcessingConfig):
             
             grid_data = reshape_to_grid(
                 block_data, col_names, names,
-                iplane=conf.iplane,
                 xpoints=xpoints,
                 debug=conf.debug
             )

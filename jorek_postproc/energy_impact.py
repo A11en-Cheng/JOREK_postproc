@@ -36,6 +36,7 @@ from . import (
     PlottingConfig,
     get_device_geometry
 )
+from .plotting import plot_heat_flux_analysis
 
 # 常量定义
 MAX_WORKERS = os.cpu_count() or 8
@@ -103,7 +104,7 @@ def compute_delta_q_batch(t_raw, q_raw_batch, t_eval, n_points=INTEGRATION_POINT
 
 def load_timestep_data(args):
     """单个时间步数据加载任务"""
-    ts, primary_file, base_dir, iplane, data_name, xpoints, debug = args
+    ts, primary_file, base_dir, data_name, xpoints, debug = args
     
     # 候选文件列表：优先尝试主文件，然后是标准命名格式文件
     candidates = []
@@ -173,7 +174,7 @@ def load_timestep_data(args):
 
             grid_data = reshape_to_grid(
                 block_data, col_names, names,
-                iplane=iplane, xpoints=xpoints, debug=debug
+                xpoints=xpoints, debug=debug
             )
             
             return time_now, grid_data 
@@ -232,7 +233,7 @@ def run_energy_impact_analysis(conf):
     tss.sort()
     
     for ts in tss:
-        tasks.append((ts, conf.file_path, base_dir, conf.iplane, conf.data_name, xpoints, conf.debug))
+        tasks.append((ts, conf.file_path, base_dir, conf.data_name, xpoints, conf.debug))
         
     # 假设时间单位转换，如果config里没有定义，默认使用 4.1006e-7
     time_factor = getattr(conf, 'time_factor', 4.1006e-7)
@@ -426,8 +427,16 @@ def run_energy_impact_analysis(conf):
             cmap='viridis', # 能量图通常用热图
             dpi=300,
             data_limits=[vmin, vmax],
-            find_max=conf.find_max
+            find_max=conf.find_max,
+            show_left_plot=conf.show_left_plot,
+            show_right_plot=conf.show_right_plot,
+            use_arc_length=conf.use_arc_length
         )
+        
+        # 准备文件名后缀
+        suffix = ""
+        if conf.use_arc_length: suffix += "_arc"
+        if conf.log_norm: suffix += "_log"
         
         # 对输入的时间步进行排序处理
         sorted_timesteps = sorted([float(ts) for ts in t_raw])
@@ -452,51 +461,106 @@ def run_energy_impact_analysis(conf):
             ref_grid_data.data = dq_slice
             
             # 1. 绘制整体视图 (Front/Back)
-            for view_name, angle in [('front', (30, 30)), ('back', (30, 210))]:
-                
-                if conf.plot_surface:
-                    fname = f'energy_impact_surf_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall_{view_name}.png'
-                    save_path = os.path.join(output_dir, fname)
-                    try:
-                        fig = plt.figure(figsize=(10, 8), dpi=150)
-                        ax = fig.add_subplot(111, projection='3d')
+            # 2D模式：总是绘制整体展开图 (包含所有区域标注)
+            if conf.dim == '2d':
+                 fname = f'energy_impact_2d_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall{suffix}.png'
+                 save_path = os.path.join(output_dir, fname)
+                 
+                 # 准备所有区域标记
+                 all_regions = []
+                 if device.masks:
+                     region_style = {
+                        'mask_UI': {'label': 'IU', 'color': 'red'},
+                        'mask_UO': {'label': 'OU', 'color': 'cyan'},
+                        'mask_LI': {'label': 'IL', 'color': 'green'},
+                        'mask_LO': {'label': 'OL', 'color': 'orange'}
+                     }
+                     for mname, mmask in device.masks.items():
+                         if mname in region_style:
+                             st = region_style[mname]
+                             all_regions.append({'label': st['label'], 'mask': mmask, 'color': st['color']})
+                 
+                 try:
+                    plot_heat_flux_analysis(
+                        ref_grid_data, 
+                        config=plotting_config,
+                        save_path=save_path,
+                        regions=all_regions,
+                        debug=conf.debug
+                    )
+                 except Exception as e:
+                    print(f"  ✗ 2D Overall绘图失败: {e}")
+            
+            # 3D模式：仅当启用 plot_overall 时绘制整体3D视图
+            elif conf.dim != '2d' and conf.plot_overall:
+                for view_name, angle in [('front', (30, 30)), ('back', (30, 210))]:
+                    
+                    if conf.plot_surface:
+                        fname = f'energy_impact_surf_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall_{view_name}{suffix}.png'
+                        save_path = os.path.join(output_dir, fname)
+                        try:
+                            fig = plt.figure(figsize=(10, 8), dpi=150)
+                            ax = fig.add_subplot(111, projection='3d')
+                            
+                            plot_surface_3d(
+                                ref_grid_data, fig, ax, 
+                                config=plotting_config,
+                                view_angle=angle,
+                                save_path=save_path,
+                                debug=conf.debug
+                            )
+                            plt.close(fig)
+                        except Exception as e:
+                            print(f"  ✗ 绘图失败 {fname}: {e}")
+                    else:
+                        fname = f'energy_impact_scat_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall_{view_name}{suffix}.png'
+                        save_path = os.path.join(output_dir, fname)
+                        try:
+                            plotting_config.cmap='inferno'  # 散点图用不同配色
+                            fig = plt.figure(figsize=(10, 8), dpi=150)
+                            ax = fig.add_subplot(111, projection='3d')
                         
-                        plot_surface_3d(
-                            ref_grid_data, fig, ax, 
-                            config=plotting_config,
-                            view_angle=angle,
-                            save_path=save_path,
-                            debug=conf.debug
-                        )
-                        plt.close(fig)
-                    except Exception as e:
-                        print(f"  ✗ 绘图失败 {fname}: {e}")
-                else:
-                    fname = f'energy_impact_scat_{t_phys*1.e3:.5f}ms_ts{int(idx)}_overall_{view_name}_scat.png'
-                    save_path = os.path.join(output_dir, fname)
-                    try:
-                        plotting_config.cmap='inferno'  # 散点图用不同配色
-                        fig = plt.figure(figsize=(10, 8), dpi=150)
-                        ax = fig.add_subplot(111, projection='3d')
-                        
-                        plot_scatter_3d(
-                            ref_grid_data, fig, ax, 
-                            config=plotting_config,
-                            view_angle=angle,
-                            save_path=save_path,
-                            debug=conf.debug
-                        )
-                        plt.close(fig)
-                    except Exception as e:
-                        print(f"  ✗ 散点图绘图失败 {fname}: {e}")
+                            plot_scatter_3d(
+                                ref_grid_data, fig, ax, 
+                                config=plotting_config,
+                                view_angle=angle,
+                                save_path=save_path,
+                                debug=conf.debug
+                            )
+                            plt.close(fig)
+                        except Exception as e:
+                            print(f"  ✗ 散点图绘图失败 {fname}: {e}")
 
             # 2. 绘制部件视图 (Masked: UO, UI, LO, LI etc.)
             for mask_name, mask in device.masks.items():
                 angle = device.view_angles.get(mask_name, (30, 45))
                 
-                if conf.plot_surface:
+                if conf.dim == '2d':
+                    # 2D 展开图 (部件高亮)
+                    fname = f'energy_impact_2d_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}{suffix}.png'
+                    save_path = os.path.join(output_dir, fname)
+                    
+                    current_regions = [{
+                        'label': mask_name.replace('mask_', ''),
+                        'mask': mask,
+                        'color': 'red'
+                    }]
+                    
+                    try:
+                        plot_heat_flux_analysis(
+                            ref_grid_data, 
+                            config=plotting_config,
+                            save_path=save_path,
+                            regions=current_regions,
+                            debug=conf.debug
+                        )
+                        if conf.debug: print(f"  ✓ 绘制部件2D展开图: {mask_name}")
+                    except Exception as e:
+                        print(f"  ✗ 2D绘图失败 {fname}: {e}")
+
+                elif conf.plot_surface:
                     print(f"  ✓ 绘制部件视图: {mask_name}")
-                    fname = f'energy_impact_surf_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}.png'
+                    fname = f'energy_impact_surf_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}{suffix}.png'
                     save_path = os.path.join(output_dir, fname)
                     try:
                         fig = plt.figure(figsize=(10, 8), dpi=150)
@@ -515,7 +579,7 @@ def run_energy_impact_analysis(conf):
                         print(f"  ✗ 绘图失败 {fname}: {e}")
                 else:
                     print(f"  ✓ 绘制部件散点图视图: {mask_name}")
-                    fname = f'energy_impact_scat_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}.png'
+                    fname = f'energy_impact_scat_{t_phys*1.e3:.5f}ms_ts{int(idx)}_{mask_name}{suffix}.png'
                     save_path = os.path.join(output_dir, fname)
                     try:
                         plotting_config.cmap='inferno'  # 散点图用不同配色

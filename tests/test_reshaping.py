@@ -13,107 +13,60 @@ class TestReshapeModule:
     
     def test_reshape_to_grid_basic(self, sample_1d_data):
         """测试基本重塑功能"""
-        grid_data = reshape_to_grid(
-            sample_1d_data,
-            grid_shape=(20, 30),
-            interpolation='linear'
-        )
+        # Construct raw block from sample data
+        # sample_1d_data: R, Z, phi, data
+        N = len(sample_1d_data.R)
+        block = np.column_stack([
+            sample_1d_data.R,
+            sample_1d_data.Z,
+            sample_1d_data.phi,
+            sample_1d_data.data
+        ])
+        
+        col_names = ['R', 'Z', 'phi', 'val']
+        names = ('R', 'Z', 'phi', 'val')
+        
+        grid_data = reshape_to_grid(block, col_names, names)
         
         assert isinstance(grid_data, BoundaryQuantitiesData)
         assert grid_data.is_2d_grid()
-        assert grid_data.grid_shape == (20, 30)
-    
-    def test_reshape_preserves_data_name(self, sample_1d_data):
-        """测试重塑后保留数据名称"""
-        original_name = sample_1d_data.data_name
-        
-        grid_data = reshape_to_grid(
-            sample_1d_data,
-            grid_shape=(15, 25),
-            interpolation='linear'
-        )
-        
-        assert grid_data.data_name == original_name
-    
-    def test_reshape_different_shapes(self, sample_1d_data):
-        """测试不同网格形状"""
-        shapes = [(10, 10), (20, 30), (50, 40), (100, 100)]
-        
-        for shape in shapes:
-            grid_data = reshape_to_grid(
-                sample_1d_data,
-                grid_shape=shape,
-                interpolation='linear'
-            )
-            
-            assert grid_data.grid_shape == shape
-            assert len(grid_data.value) == shape[0] * shape[1]
-    
-    def test_reshape_interpolation_methods(self, sample_1d_data):
-        """测试不同插值方法"""
-        methods = ['linear', 'nearest', 'cubic']
-        
-        results = {}
-        for method in methods:
-            grid_data = reshape_to_grid(
-                sample_1d_data,
-                grid_shape=(15, 20),
-                interpolation=method
-            )
-            results[method] = grid_data
-        
-        # 检查所有方法都返回有效结果
-        for method, data in results.items():
-            assert data.is_2d_grid()
-            assert not np.any(np.isnan(data.value)), f"Method {method} produced NaN values"
-    
-    def test_reshape_from_2d_fails(self, sample_grid_data):
-        """测试从2D数据重塑应该失败或不同处理"""
-        # 已经是2D数据，重塑应该处理得当
-        result = reshape_to_grid(
-            sample_grid_data,
-            grid_shape=(10, 20),
-            interpolation='linear'
-        )
-        
-        assert result.is_2d_grid()
-    
-    def test_reshape_value_consistency(self, sample_1d_data):
-        """测试重塑后值的一致性"""
-        original_min = sample_1d_data.value.min()
-        original_max = sample_1d_data.value.max()
-        
-        grid_data = reshape_to_grid(
-            sample_1d_data,
-            grid_shape=(20, 30),
-            interpolation='linear'
-        )
-        
-        # 重塑后的min/max不应显著超出原始范围
-        assert grid_data.value.min() >= original_min * 0.9
-        assert grid_data.value.max() <= original_max * 1.1
 
-
-class TestGridProperties:
-    """测试网格属性"""
-    
-    def test_grid_shape_attribute(self, sample_grid_data):
-        """测试网格形状属性"""
-        assert hasattr(sample_grid_data, 'grid_shape')
-        assert sample_grid_data.grid_shape == (10, 20)
-    
-    def test_grid_is_2d_check(self, sample_grid_data, sample_1d_data):
-        """测试2D网格检查"""
-        assert sample_grid_data.is_2d_grid() is True
-        assert sample_1d_data.is_2d_grid() is False
-    
-    def test_grid_dimensions_match_data(self, sample_grid_data):
-        """测试网格尺寸与数据匹配"""
-        expected_size = sample_grid_data.grid_shape[0] * sample_grid_data.grid_shape[1]
-        actual_size = len(sample_grid_data.value)
+    def test_reshape_real_usage(self):
+        """测试真实调用方式"""
+        # Create raw block
+        N = 100
+        block = np.zeros((N, 4))
+        block[:, 0] = np.random.rand(N) + 2.0 # R
+        block[:, 1] = np.random.rand(N) # Z
+        block[:, 2] = np.concatenate([np.zeros(50), np.ones(50)]) # phi
+        block[:, 3] = np.random.rand(N) # val
         
-        assert actual_size == expected_size
-
-
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+        col_names = ['R', 'Z', 'phi', 'val']
+        names = ('R', 'Z', 'phi', 'val')
+        
+        grid_data = reshape_to_grid(block, col_names, names)
+        
+        assert isinstance(grid_data, BoundaryQuantitiesData)
+        assert grid_data.grid_shape[0] == 2 # 2 phi slices
+        
+    def test_reshape_arc_length(self):
+        """测试弧长计算"""
+        # Create points on a circle to satisfy centroid sorting logic
+        theta = np.linspace(0, 2*np.pi - 0.1, 10)
+        R = 3.0 + np.cos(theta)
+        Z = np.sin(theta)
+        phi = np.zeros_like(theta)
+        val = np.ones_like(theta)
+        
+        block = np.column_stack([R, Z, phi, val])
+        col_names = ['R', 'Z', 'phi', 'val']
+        names = ('R', 'Z', 'phi', 'val')
+        
+        grid_data = reshape_to_grid(block, col_names, names)
+        
+        assert grid_data.arc_length is not None
+        # Arc length should increase roughly monotonically (sorting might reorder)
+        # Check monotonicity of arc_length[0]
+        al = grid_data.arc_length[0, :]
+        assert np.all(np.diff(al) >= 0)
+        assert al[-1] > 0

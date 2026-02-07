@@ -39,7 +39,7 @@ from . import (
 from .plotting import plot_heat_flux_analysis
 
 # 常量定义
-MAX_WORKERS = os.cpu_count() or 8
+MAX_WORKERS = os.cpu_count()-1 or 8
 CHUNK_SIZE = 108
 INTEGRATION_POINTS = 4000
 INTERP_POINTS = 4000
@@ -459,6 +459,7 @@ def run_energy_impact_analysis(conf):
                 continue
             # 更新数据对象
             ref_grid_data.data = dq_slice
+            ref_grid_data.data_name = "Energy Impact"
             
             # 1. 绘制整体视图 (Front/Back)
             # 2D模式：总是绘制整体展开图 (包含所有区域标注)

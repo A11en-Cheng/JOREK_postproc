@@ -421,7 +421,7 @@ def plot_heat_flux_analysis(
                         ax2.text(line_x + (phi_axis.max()-phi_axis.min())*0.01, (y_min + y_max)/2, f"{reg['label']}", 
                                  color=reg['color'], va='center', ha='left', fontweight='bold', fontsize=16)
 
-        cbar = fig.colorbar(mesh, ax=ax2, label=data.data_name)
+        cbar = fig.colorbar(mesh, ax=ax2)
         
         if use_len:
             # 保持画面为正方形 (Square Frame)
@@ -434,7 +434,7 @@ def plot_heat_flux_analysis(
         ax2.set_xlabel(r'$\phi$ (Toroidal Angle)', fontsize=16)
         ax2.set_ylabel(y_label, fontsize=16)
         
-        title_str = f'Heat Flux'
+        title_str = data.data_name
         if data.time:
             title_str += f' (t={data.time*1e3:.4f}ms)'
         ax2.set_title(title_str, fontsize=18)

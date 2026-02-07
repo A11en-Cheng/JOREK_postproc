@@ -7,7 +7,7 @@ import os
 import seaborn as sns
 import numpy as np
 
-def plot_with_dual_axis(file_pattern, file_extension='txt'):
+def plot_with_dual_axis(file_pattern, file_extension='dat'):
     # 1. 查找并排序文件
     if os.path.isdir(file_pattern):
         files = glob.glob(os.path.join(file_pattern, f"*.{file_extension}"))
@@ -21,7 +21,7 @@ def plot_with_dual_axis(file_pattern, file_extension='txt'):
     files.sort() # 确保顺序一致，最后一个文件即为列表最后一个
     num_files = len(files)
     print(f"共找到 {num_files} 个文件。")
-    print(f"前 {num_files - 2} 个文件将绘制在左轴，最后一个文件 '{os.path.basename(files[-1]),os.path.basename(files[-2])}' 将绘制在右轴。")
+    print(f"前 {num_files - 1} 个文件将绘制在左轴，最后一个文件 '{os.path.basename(files[-1])}' 将绘制在右轴。")
 
     # 2. 风格设置
     sns.set_context("notebook", font_scale=1.2)
@@ -133,4 +133,4 @@ if __name__ == "__main__":
     #create_dual_axis_dummy_data()
     
     # 运行绘图
-    plot_with_dual_axis("/home/ac_desktop/XL50-U/XL50-U_1.5.2/init_cond/*")
+    plot_with_dual_axis("/home/ac_desktop/EHL-2/wallgrid_const/init_cond/*")

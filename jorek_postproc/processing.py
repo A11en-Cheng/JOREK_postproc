@@ -15,7 +15,6 @@ def process_timestep(
     file_path: str,
     column_names: list,
     names: Tuple[str, str, str, str],
-    iplane: Optional[int] = None,
     xpoints: Optional[np.ndarray] = None,
     debug: bool = False
 ) -> Tuple[Optional[float], Optional[BoundaryQuantitiesData]]:
@@ -34,8 +33,6 @@ def process_timestep(
         列名列表
     names : tuple of 4 str
         物理量列映射 [R_name, Z_name, phi_name, val_name]
-    iplane : int, optional
-        环向平面数
     xpoints : numpy.ndarray, optional
         X点坐标
     debug : bool, optional
@@ -68,7 +65,6 @@ def process_timestep(
             block_data,
             column_names,
             names,
-            iplane=iplane,
             xpoints=xpoints,
             debug=debug
         )
@@ -89,7 +85,6 @@ def process_multiple_timesteps(
     file_addr: str,
     column_names: list,
     names: Tuple[str, str, str, str],
-    iplane: Optional[int] = None,
     xpoints: Optional[np.ndarray] = None,
     debug: bool = False,
     filename: Optional[str] = None
@@ -155,7 +150,6 @@ def process_multiple_timesteps(
                 block_data,
                 col_names,
                 names,
-                iplane=iplane,
                 xpoints=xpoints,
                 debug=debug
             )

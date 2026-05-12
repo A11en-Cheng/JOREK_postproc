@@ -100,9 +100,9 @@ def plot_dat_file(file_path, log_y=False, x_limit=None, si_index=None, Xpt_loc=[
             if type(xpt) is list:
                 ax.axvline(x=xpt[0], color='red', linestyle='--', linewidth=2)
                 if log_y:
-                    ax.text(xpt[0]*1.002, xpt[1], f'{texts[i]}: t={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
+                    ax.text(xpt[0]*1.02, xpt[1], f'{texts[i]}: t={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
                 else:
-                    ax.text(xpt[0]*1.002, xpt[1], f'{texts[i]}: t={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
+                    ax.text(xpt[0]*1.02, xpt[1], f'{texts[i]}: t={xpt[0]:.2f}', rotation=90, verticalalignment='top', color='red')
             else:
                 ax.axvline(x=xpt, color='red', linestyle='--', linewidth=2)
                 if log_y:
@@ -171,9 +171,10 @@ if __name__ == "__main__":
     # plot_dat_file("simulation_data.dat", log_y=False)
     
     # 模式 B: 对数坐标 (log_y=True) -> 推荐用于观察 E-14 这种小数值
-    #Xpt_loc = [[3.1590,0.01],[3.5723,0.01]]
+    Xpt_loc = [[1.981,0.00020],[3.1613,0.00020]]
+    Xpt_loc = [[1.981,2.e5],[3.1613,2.e5]]
     #Xpt_loc = [3.1590,3.5723]
     # Xpt_loc = [[2.89,25e-5],[3.23,25e-5]]
-    Xpt_loc = [[4.584,8e-4],[4.924,8e-4]]
-    plot_dat_file("/home/ac_desktop/syncfiles/energies.dat", log_y=False, si_index=4.1006E-07, Xpt_loc=Xpt_loc, Right_legend = True, tex=True)
-    # plot_dat_file("/home/ac_desktop/XL50-U/XL50-U_1.4.5/energies.dat", log_y=False, si_index=4.1006E-07, Xpt_loc=Xpt_loc, Right_legend = True)
+    #Xpt_loc = [[4.584,8e-4],[4.924,8e-4]]
+    # plot_dat_file("/home/ac_desktop/syncfiles/energies.dat", log_y=False, si_index=4.1006E-07, Xpt_loc=Xpt_loc, Right_legend = True, tex=True)
+    plot_dat_file("/home/ac_desktop/XL50-U/XL50-U_1.4.5/integrated_energies.dat", log_y=False, si_index=4.1006E-07, Xpt_loc=Xpt_loc, Right_legend = True)

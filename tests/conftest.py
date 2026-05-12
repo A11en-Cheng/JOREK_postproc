@@ -28,11 +28,11 @@ def sample_grid_data():
         R=R,
         Z=Z,
         phi=PHI,
+        theta=THETA,
         data=value,
         data_name='test_data',
         grid_shape=(iplane, npoloidal)
     )
-
 
 @pytest.fixture
 def sample_1d_data():

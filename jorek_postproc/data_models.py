@@ -44,6 +44,8 @@ class BoundaryQuantitiesData:
     time: Optional[float] = None
     time_step: Optional[str] = None
     grid_shape: Optional[Tuple[int, int]] = None
+    theta: Optional[np.ndarray] = None
+    arc_length: Optional[np.ndarray] = None
     
     def is_2d_grid(self) -> bool:
         """检查数据是否已重整化为2D网格格式"""
@@ -65,7 +67,8 @@ class BoundaryQuantitiesData:
             data_name=self.data_name,
             time=self.time,
             time_step=self.time_step,
-            grid_shape=(iplane, n_poloidal)
+            grid_shape=(iplane, n_poloidal),
+            theta=np.reshape(self.theta, (iplane, n_poloidal), order='C') if self.theta is not None else None
         )
 
 
@@ -114,3 +117,6 @@ class PlottingConfig:
     dpi: int = 300
     data_limits: Optional[List[float]] = None
     find_max: bool = True
+    show_left_plot: bool = True
+    show_right_plot: bool = True
+    use_arc_length: bool = False

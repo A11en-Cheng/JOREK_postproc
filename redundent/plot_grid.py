@@ -77,22 +77,23 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
         for line_data in grid_lines:
             ax.plot(line_data[:, 0], line_data[:, 1], 
                     color='#2c3e50',  # 深灰蓝色
-                    linewidth=0.8,    # 细线
+                    linewidth=0.7,    # 细线
                     alpha=0.5)        # 半透明
 
     # 3. 绘制边界 (Boundaries)
     # 使用高对比度颜色强调边界
-    boundary_colors = ['#e74c3c', '#e67e22', '#8e44ad'] # 红、橙、紫
+    boundary_colors = [ '#e67e22', '#8e44ad', '#e74c3c'] # 橙、紫、红
     boundaries = ['Real PFCs','JOREK simulation boundary']
     for i, b_file in enumerate(boundary_files):
         b_data = load_boundary(b_file)
+        linestyles = ['-', '--', '-.']  
         if b_data is not None:
             color = boundary_colors[i % len(boundary_colors)]
             ax.plot(b_data[:, 0], b_data[:, 1],
                     label=f"{boundaries[i]}",
                     color=color,
-                    linewidth=1.5, # 边界线加粗
-                    linestyle='-')
+                    linewidth=2, # 边界线加粗
+                    linestyle=linestyles[i])
 
     # 4. 关键设置：等比例缩放
     # 这一步对于物理网格至关重要，否则圆形会变成椭圆
@@ -110,7 +111,7 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
     sns.despine()
 
     # 如果有边界图例，显示出来
-    if boundary_files:
+    if boundary_files and not grid_file:
         ax.legend(frameon=True, fancybox=True, loc='best')
 
     plt.tight_layout()
@@ -191,16 +192,19 @@ if __name__ == "__main__":
     
     # 2. 绘图
     # 将你的文件名填入这里
-    '''
     plot_mesh_system(
-        grid_file="/home/ac_desktop/XL50-U/XL50-U_1.4.5/grid_xpoint.dat", 
-        boundary_files=[],
+        grid_file="/home/ac_desktop/EHL-2/wallgrid_const/grid_xpoint.dat", 
+        # boundary_files=["/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],
         title="X-point Grid"
     )
-    '''
-    plot_mesh_system(
-        grid_file=None, 
-        boundary_files=["/home/ac_desktop/XL50-U_nl/wallcontour_updated.dat", "/home/ac_desktop/XL50-U_nl/wallcontour_adjusted.dat"],
-        title="X-point Wall Grid"
-    )
+    # plot_mesh_system(
+    #     grid_file="/home/ac_desktop/EHL-2/wallgrid_const/grid_initial.dat", 
+    #     boundary_files=["/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],
+    #     title="Initial Grid"
+    # )
+    # plot_mesh_system(
+    #     grid_file=None, 
+    #     boundary_files=["/home/ac_desktop/EHL-2/processedwallcontour", "/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],
+    #     title="X-point Wall Grid"
+    # )
     

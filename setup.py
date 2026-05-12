@@ -47,6 +47,7 @@ setup(
         "numpy>=1.19.0",
         "matplotlib>=3.1.0",
         "scipy>=1.5.0",
+        "tqdm>=4.60.0",
     ],
     entry_points={
         "console_scripts": [

@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-from jorek_postproc import get_device_geometry
+from .geometry import get_device_geometry
 
 
 @dataclass

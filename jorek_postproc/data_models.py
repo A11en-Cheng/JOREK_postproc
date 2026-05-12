@@ -14,9 +14,9 @@ import numpy as np
 class BoundaryQuantitiesData:
     """
     标准化的边界量数据格式。
-    
+
     该类定义了通过整个处理管道的统一数据格式。
-    
+
     Attributes
     ----------
     R : numpy.ndarray
@@ -36,6 +36,7 @@ class BoundaryQuantitiesData:
     grid_shape : Tuple[int, int], optional
         网格形状 (N_phi, N_poloidal)，用于3D表面绘图
     """
+
     R: np.ndarray
     Z: np.ndarray
     phi: np.ndarray
@@ -46,29 +47,33 @@ class BoundaryQuantitiesData:
     grid_shape: Optional[Tuple[int, int]] = None
     theta: Optional[np.ndarray] = None
     arc_length: Optional[np.ndarray] = None
-    
+
     def is_2d_grid(self) -> bool:
         """检查数据是否已重整化为2D网格格式"""
         return len(self.R.shape) == 2
-    
-    def get_2d_view(self, iplane: int) -> 'BoundaryQuantitiesData':
+
+    def get_2d_view(self, iplane: int) -> "BoundaryQuantitiesData":
         """将1D数据转换为2D网格视图"""
         if self.is_2d_grid():
             return self
-        
+
         n_total = len(self.R)
         n_poloidal = n_total // iplane
-        
+
         return BoundaryQuantitiesData(
-            R=np.reshape(self.R, (iplane, n_poloidal), order='C'),
-            Z=np.reshape(self.Z, (iplane, n_poloidal), order='C'),
-            phi=np.reshape(self.phi, (iplane, n_poloidal), order='C'),
-            data=np.reshape(self.data, (iplane, n_poloidal), order='C'),
+            R=np.reshape(self.R, (iplane, n_poloidal), order="C"),
+            Z=np.reshape(self.Z, (iplane, n_poloidal), order="C"),
+            phi=np.reshape(self.phi, (iplane, n_poloidal), order="C"),
+            data=np.reshape(self.data, (iplane, n_poloidal), order="C"),
             data_name=self.data_name,
             time=self.time,
             time_step=self.time_step,
             grid_shape=(iplane, n_poloidal),
-            theta=np.reshape(self.theta, (iplane, n_poloidal), order='C') if self.theta is not None else None
+            theta=(
+                np.reshape(self.theta, (iplane, n_poloidal), order="C")
+                if self.theta is not None
+                else None
+            ),
         )
 
 
@@ -76,7 +81,7 @@ class BoundaryQuantitiesData:
 class DeviceGeometry:
     """
     设备位形定义。
-    
+
     Attributes
     ----------
     name : str
@@ -88,6 +93,7 @@ class DeviceGeometry:
     xpoints : Optional[np.ndarray] = None
         X点坐标数组
     """
+
     name: str
     masks: Dict[str, np.ndarray]
     view_angles: Dict[str, Tuple[int, int]]
@@ -98,7 +104,7 @@ class DeviceGeometry:
 class PlottingConfig:
     """
     绘图配置参数。
-    
+
     Attributes
     ----------
     log_norm : bool
@@ -112,8 +118,9 @@ class PlottingConfig:
     find_max : bool
         是否在图上标记最大值
     """
+
     log_norm: bool = False
-    cmap: str = 'viridis'
+    cmap: str = "viridis"
     dpi: int = 300
     data_limits: Optional[List[float]] = None
     find_max: bool = True

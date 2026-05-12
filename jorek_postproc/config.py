@@ -9,6 +9,7 @@ import sys
 from jorek_postproc import get_device_geometry
 import numpy as np
 
+
 @dataclass
 class ProcessingConfig:
     """
@@ -51,10 +52,11 @@ class ProcessingConfig:
     mode : str
         处理模式: 'standard', 'energy_impact', 'plot_set'
     """
+
     file_path: str
     timesteps: List[str]
-    data_name: str = 'heatF_tot_cd'
-    device: str = 'EXL50U'
+    data_name: str = "heatF_tot_cd"
+    device: str = "EXL50U"
     data_limits: List[float] = field(default_factory=lambda: [1e5, 3e8])
     norm_factor: Optional[float] = None
     plot_surface: bool = True
@@ -66,8 +68,8 @@ class ProcessingConfig:
     debug: bool = False
     energy_impact: bool = False
     save_convolution: bool = False
-    mode: str = 'standard'
-    dim: Optional[str] = None # '2d' or '3d'
+    mode: str = "standard"
+    dim: Optional[str] = None  # '2d' or '3d'
     show_left_plot: bool = True
     show_right_plot: bool = True
     use_arc_length: bool = False
@@ -78,23 +80,22 @@ class ProcessingConfig:
         """
         # 兼容性处理
         if self.energy_impact:
-            self.mode = 'energy_impact'
+            self.mode = "energy_impact"
 
         # 维度相关的互斥逻辑
-        if self.dim == '2d':
+        if self.dim == "2d":
             # 2D模式下，强制关闭3D特有的表面/散点选项（避免混淆）
-            self.plot_surface = False 
+            self.plot_surface = False
             # 2D模式下没有"整体视图"开关的概念，通常总是绘制整体图
             # 这里的 plot_overall 在2D下将不再生效或作为默认行为
-            
-        elif self.dim == '3d':
+
+        elif self.dim == "3d":
             # 3D模式下确保如果有相关逻辑能正确回退
             pass
 
         # 模式相关的默认值修正
-        if self.mode == 'plot_set' and not self.dim:
-            self.dim = '2d'
-
+        if self.mode == "plot_set" and not self.dim:
+            self.dim = "2d"
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -114,153 +115,109 @@ def create_parser() -> argparse.ArgumentParser:
   jorek_postproc -f boundary_quantities_s04200.dat -t 4200 --dim 3d
   jorek_postproc -f boundary_quantities.dat -t 5000 --mode plot_set --use_arc_length
   jorek_postproc -f boundary_quantities.dat -m energy_impact --dim 2d --log_norm
-        """
+        """,
     )
-    
+
     # --- 1. 基础文件与数据配置 ---
-    group_file = parser.add_argument_group('基础文件配置 (File & Data)')
+    group_file = parser.add_argument_group("基础文件配置 (File & Data)")
+    group_file.add_argument("-f", "--file_path", required=True, help="边界量文件路径 (.dat)")
     group_file.add_argument(
-        "-f", "--file_path",
-        required=True,
-        help="边界量文件路径 (.dat)"
-    )
-    group_file.add_argument(
-        "-t", "--timesteps",
-        nargs='+',
+        "-t",
+        "--timesteps",
+        nargs="+",
         required=True,
         type=str,
-        help="时间步列表 (e.g., 4200 4650 5000)"
+        help="时间步列表 (e.g., 4200 4650 5000)",
     )
     group_file.add_argument(
-        "-n", "--data_name",
-        default='heatF_tot_cd',
-        help="物理量名称 (默认: heatF_tot_cd)"
+        "-n", "--data_name", default="heatF_tot_cd", help="物理量名称 (默认: heatF_tot_cd)"
     )
     group_file.add_argument(
-        "-d", "--device",
-        default='EXL50U',
-        choices=['EXL50U', 'ITER'],
-        help="设备名称"
+        "-d", "--device", default="EXL50U", choices=["EXL50U", "ITER"], help="设备名称"
     )
     group_file.add_argument(
-        "-o", "--output_dir",
-        default=None,
-        help="输出目录 (默认当前目录下生成)"
+        "-o", "--output_dir", default=None, help="输出目录 (默认当前目录下生成)"
     )
 
     # --- 2. 模式选择 ---
-    group_mode = parser.add_argument_group('运行模式 (Mode)')
+    group_mode = parser.add_argument_group("运行模式 (Mode)")
     group_mode.add_argument(
-        "-m", "--mode",
+        "-m",
+        "--mode",
         type=str,
-        default='standard',
-        choices=['standard', 'energy_impact', 'plot_set'],
+        default="standard",
+        choices=["standard", "energy_impact", "plot_set"],
         help="""处理模式:
   standard      : 标准单步处理 (默认)
   energy_impact : 能量冲击/积分计算
-  plot_set      : 直接生成图集 (默认2D视图)"""
+  plot_set      : 直接生成图集 (默认2D视图)""",
     )
     group_mode.add_argument(
         "--energy_impact",
-        action='store_true',
-        help="[Deprecated] 兼容旧标志，等同于 --mode energy_impact，将弃用"
+        action="store_true",
+        help="[Deprecated] 兼容旧标志，等同于 --mode energy_impact，将弃用",
     )
 
     # --- 3. 维度与视图配置 ---
-    group_dim = parser.add_argument_group('维度与绘图 (Dimension & View)')
+    group_dim = parser.add_argument_group("维度与绘图 (Dimension & View)")
     group_dim.add_argument(
         "--dim",
         type=str,
-        choices=['2d', '3d'],
+        choices=["2d", "3d"],
         default=None,
-        help="绘图维度: '2d' (展开图), '3d' (空间分布). 若不指定，standard默认为3d，plot_set默认为2d"
+        help="绘图维度: '2d' (展开图), '3d' (空间分布). 若不指定，standard默认为3d，plot_set默认为2d",
     )
     group_dim.add_argument(
         "--use_arc_length",
-        action='store_true',
+        action="store_true",
         default=False,
-        help="使用弧长(Arc Length)作为Y轴 (仅2D模式有效)"
+        help="使用弧长(Arc Length)作为Y轴 (仅2D模式有效)",
     )
     group_dim.add_argument(
-        "--plot_surface",
-        action='store_true',
-        default=True,
-        help="[3D] 绘制表面图 (默认)"
+        "--plot_surface", action="store_true", default=True, help="[3D] 绘制表面图 (默认)"
     )
-    group_dim.add_argument(
-        "--plot_scatter",
-        action='store_true',
-        help="[3D] 绘制散点图"
-    )
-    
+    group_dim.add_argument("--plot_scatter", action="store_true", help="[3D] 绘制散点图")
+
     # 2D 视图特定选项 (针对 plot_set 和 dim=2d)
     group_dim.add_argument(
-        "--left_only",
-        action='store_true',
-        default=False,
-        help="[2D] 仅绘制左侧 R-Z 截面图"
+        "--left_only", action="store_true", default=False, help="[2D] 仅绘制左侧 R-Z 截面图"
     )
     group_dim.add_argument(
-        "--right_only",
-        action='store_true',
-        default=False,
-        help="[2D] 仅绘制右侧展开图"
+        "--right_only", action="store_true", default=False, help="[2D] 仅绘制右侧展开图"
     )
     group_dim.add_argument(
         "--overall",
-        action='store_true',
+        action="store_true",
         default=False,
-        help="[3D/EI] 绘制整体视图 (默认绘制所有部件)"
+        help="[3D/EI] 绘制整体视图 (默认绘制所有部件)",
     )
 
     # --- 4. 数据处理与调试 ---
-    group_proc = parser.add_argument_group('数据处理选项 (Processing)')
+    group_proc = parser.add_argument_group("数据处理选项 (Processing)")
     group_proc.add_argument(
-        "--limits","-lim",
+        "--limits",
+        "-lim",
         nargs=2,
         type=float,
-        metavar=('MIN', 'MAX'),
+        metavar=("MIN", "MAX"),
         default=None,
-        help="数据截断范围 [min max]"
+        help="数据截断范围 [min max]",
     )
-    group_proc.add_argument(
-        "--norm_factor",
-        type=float,
-        default=4.1006E-07,
-        help="归一化因子"
-    )
-    group_proc.add_argument(
-        "--log_norm",
-        action='store_true',
-        default=False,
-        help="使用对数色标"
-    )
-    group_proc.add_argument(
-        "--find_max",
-        action='store_true',
-        default=False,
-        help="标记最大值点"
-    )
+    group_proc.add_argument("--norm_factor", type=float, default=4.1006e-07, help="归一化因子")
+    group_proc.add_argument("--log_norm", action="store_true", default=False, help="使用对数色标")
+    group_proc.add_argument("--find_max", action="store_true", default=False, help="标记最大值点")
     group_proc.add_argument(
         "--xpoints",
         nargs=4,
         type=float,
         default=None,
-        metavar=('X1', 'Z1', 'X2', 'Z2'),
-        help="X点坐标校正"
+        metavar=("X1", "Z1", "X2", "Z2"),
+        help="X点坐标校正",
     )
     group_proc.add_argument(
-        "--save_convolution",
-        action='store_true',
-        default=False,
-        help="保存卷积中间结果"
+        "--save_convolution", action="store_true", default=False, help="保存卷积中间结果"
     )
-    group_proc.add_argument(
-        "--debug",
-        action='store_true',
-        default=False,
-        help="调试模式"
-    )
+    group_proc.add_argument("--debug", action="store_true", default=False, help="调试模式")
 
     return parser
 
@@ -271,15 +228,15 @@ def parse_args(args=None) -> ProcessingConfig:
     """
     parser = create_parser()
     parsed = parser.parse_args(args)
-    
+
     # 处理互斥选项
     plot_surface = True
     if parsed.plot_scatter:
         plot_surface = False
-    
+
     # 如果指定了dim，则根据模式覆盖默认行为，或者保持兼容
     # plot_set 模式隐含 dim=2d，除非强制修改(暂时不支持plot_set画3d)
-    
+
     # 处理xpoints
     xpoints = []
     if parsed.xpoints is not None:
@@ -292,12 +249,12 @@ def parse_args(args=None) -> ProcessingConfig:
             if parsed.debug:
                 print(f"[Config] Failed to get default xpoints for {parsed.device}: {e}")
             xpoints = None
-            
+
     # Determine mode
     mode = parsed.mode
     if parsed.energy_impact:
-        mode = 'energy_impact'
-    
+        mode = "energy_impact"
+
     # Handle plot selection flags
     show_left = True
     show_right = True
@@ -305,7 +262,7 @@ def parse_args(args=None) -> ProcessingConfig:
         show_right = False
     if parsed.right_only:
         show_left = False
-        
+
     return ProcessingConfig(
         dim=parsed.dim,
         file_path=parsed.file_path,
@@ -321,12 +278,12 @@ def parse_args(args=None) -> ProcessingConfig:
         output_dir=parsed.output_dir,
         xpoints=xpoints,
         debug=parsed.debug,
-        energy_impact=(mode == 'energy_impact'),
+        energy_impact=(mode == "energy_impact"),
         save_convolution=parsed.save_convolution,
         mode=mode,
         show_left_plot=show_left,
         show_right_plot=show_right,
-        use_arc_length=parsed.use_arc_length
+        use_arc_length=parsed.use_arc_length,
     )
 
 
@@ -340,19 +297,19 @@ def create_debug_config() -> ProcessingConfig:
         调试配置对象
     """
     return ProcessingConfig(
-        file_path='/home/ac_desktop/syncfiles/postproc_152_new/boundary_quantities_s05000.dat',
-        timesteps=['5000', '6000'],
-        data_name='heatF_total',
-        device='EXL50U',
+        file_path="/home/ac_desktop/syncfiles/postproc_152_new/boundary_quantities_s05000.dat",
+        timesteps=["5000", "6000"],
+        data_name="heatF_total",
+        device="EXL50U",
         data_limits=[1e5, 3e9],
-        norm_factor=4.1006E-07,
+        norm_factor=4.1006e-07,
         plot_surface=True,
         plot_overall=False,
         log_norm=True,
         find_max=False,
         output_dir=None,
-        xpoints= [0.73,  -0.877, 0.73,   0.877],
+        xpoints=[0.73, -0.877, 0.73, 0.877],
         debug=True,
         energy_impact=False,
-        save_convolution=False
+        save_convolution=False,
     )

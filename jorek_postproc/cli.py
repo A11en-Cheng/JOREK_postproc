@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
-from . import boundary_analysis  # 新增导入
+from . import boundary_analysis
 from . import PlottingConfig
 from . import config as cfg
 from . import (

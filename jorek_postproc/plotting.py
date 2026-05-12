@@ -199,7 +199,7 @@ def plot_surface_3d(
         # kwargs['antialiased'] = True
     sc = ax.plot_surface(
         R_plot, phi_plot, Z_plot,
-        facecolors=cm.get_cmap(config.cmap)(norm(data_plot)),
+        facecolors=plt.get_cmap(config.cmap)(norm(data_plot)),
         cmap=config.cmap,
         alpha=1,
         **kwargs

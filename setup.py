@@ -17,7 +17,7 @@ if not hasattr(configparser, 'SafeConfigParser'):
 
 from setuptools import setup, find_packages
 
-with open("jorek_postproc/README.md", "r", encoding="utf-8") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
@@ -47,6 +47,7 @@ setup(
         "numpy>=1.19.0",
         "matplotlib>=3.1.0",
         "scipy>=1.5.0",
+        "tqdm>=4.60.0",
     ],
     entry_points={
         "console_scripts": [

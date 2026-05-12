@@ -5,12 +5,13 @@ Provides functions for scatter and surface plotting in 3D space.
 """
 
 import os
-import numpy as np
+from typing import Dict, List, Optional, Tuple
+
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
+import numpy as np
 from matplotlib import cm
+from matplotlib.colors import LogNorm
 from mpl_toolkits.mplot3d import Axes3D
-from typing import Optional, Tuple, List, Dict
 
 from .data_models import BoundaryQuantitiesData, PlottingConfig
 

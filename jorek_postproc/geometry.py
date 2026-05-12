@@ -5,9 +5,11 @@ This module defines geometric regions (masks) for different tokamak devices,
 supporting easy extension with new devices.
 """
 
-import numpy as np
-from typing import Dict, Tuple, Callable, Optional, Type
 from abc import ABC, abstractmethod
+from typing import Callable, Dict, Optional, Tuple, Type
+
+import numpy as np
+
 from .data_models import DeviceGeometry
 
 

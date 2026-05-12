@@ -4,8 +4,10 @@ Data reshaping and grid generation module.
 Transforms unstructured 1D point data into structured 2D grids suitable for 3D surface plotting.
 """
 
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Tuple, List, Optional, Dict
+
 from .data_models import BoundaryQuantitiesData
 
 

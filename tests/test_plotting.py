@@ -2,12 +2,14 @@
 测试绘图/可视化模块
 """
 
-import pytest
-import numpy as np
+from unittest.mock import MagicMock, patch
+
 import matplotlib.pyplot as plt
-from unittest.mock import patch, MagicMock
-from jorek_postproc.plotting import plot_surface_3d, plot_scatter_3d, plot_heat_flux_analysis
-from jorek_postproc.data_models import PlottingConfig, BoundaryQuantitiesData
+import numpy as np
+import pytest
+
+from jorek_postproc.data_models import BoundaryQuantitiesData, PlottingConfig
+from jorek_postproc.plotting import plot_heat_flux_analysis, plot_scatter_3d, plot_surface_3d
 
 
 class TestPlottingModule:

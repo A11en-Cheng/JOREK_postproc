@@ -3,11 +3,13 @@ Configuration and command-line argument parsing for boundary quantities processi
 """
 
 import argparse
-from typing import List, Optional, Tuple
-from dataclasses import dataclass, field
 import sys
-from jorek_postproc import get_device_geometry
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple
+
 import numpy as np
+
+from jorek_postproc import get_device_geometry
 
 
 @dataclass

@@ -7,6 +7,7 @@ consistency and facilitate extension with new devices and processing functions.
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
 

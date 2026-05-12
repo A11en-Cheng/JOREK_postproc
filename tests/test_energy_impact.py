@@ -2,11 +2,13 @@
 测试能量冲击分析模块
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from unittest.mock import patch, MagicMock
-from jorek_postproc.energy_impact import compute_delta_q_batch, load_timestep_data
+import pytest
+
 from jorek_postproc.data_models import BoundaryQuantitiesData
+from jorek_postproc.energy_impact import compute_delta_q_batch, load_timestep_data
 
 
 class TestEnergyImpactMath:

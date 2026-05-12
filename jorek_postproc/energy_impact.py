@@ -6,20 +6,21 @@ Energy impact calculation module.
 Handles parallel processing of multiple time-step files for energy impact analysis.
 """
 
+import gc
+import multiprocessing
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import time
 from types import SimpleNamespace
-import os
-import multiprocessing
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LogNorm
+from scipy.interpolate import interp1d
+from tqdm import tqdm
 
 from jorek_postproc import plotting
-import numpy as np
-from typing import List, Dict, Any, Tuple, Callable, Optional
-import gc
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from matplotlib.colors import LogNorm
-from tqdm import tqdm
 
 # Numpy 2.0 compatibility
 if hasattr(np, "trapz"):
@@ -29,12 +30,12 @@ else:
 
 
 from . import (
-    read_boundary_file,
-    reshape_to_grid,
-    plot_surface_3d,
-    plot_scatter_3d,
     PlottingConfig,
     get_device_geometry,
+    plot_scatter_3d,
+    plot_surface_3d,
+    read_boundary_file,
+    reshape_to_grid,
 )
 from .plotting import plot_heat_flux_analysis
 

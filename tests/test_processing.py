@@ -2,11 +2,13 @@
 测试数据处理模块
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from unittest.mock import patch, MagicMock
-from jorek_postproc.processing import process_multiple_timesteps, apply_data_limits
+import pytest
+
 from jorek_postproc.data_models import BoundaryQuantitiesData
+from jorek_postproc.processing import apply_data_limits, process_multiple_timesteps
 
 
 class TestProcessingModule:

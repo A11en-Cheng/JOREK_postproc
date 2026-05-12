@@ -2,12 +2,14 @@
 测试命令行接口
 """
 
-import pytest
-import sys
 import subprocess
-from unittest.mock import patch, MagicMock
-from jorek_postproc.cli import main
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 import jorek_postproc.config as cfg
+from jorek_postproc.cli import main
 
 
 class TestCLIExecution:

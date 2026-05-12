@@ -3,11 +3,8 @@
 """
 
 import pytest
-from jorek_postproc import (
-    BoundaryQuantitiesData,
-    PlottingConfig,
-    get_device_geometry,
-)
+
+from jorek_postproc import BoundaryQuantitiesData, PlottingConfig, get_device_geometry
 
 
 class TestDataModels:

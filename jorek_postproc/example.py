@@ -9,17 +9,18 @@
 """
 
 import os
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
 from jorek_postproc import (
-    read_boundary_file,
-    reshape_to_grid,
+    PlottingConfig,
     get_device_geometry,
     plot_scatter_3d,
     plot_surface_3d,
-    PlottingConfig,
+    read_boundary_file,
+    reshape_to_grid,
 )
 
 

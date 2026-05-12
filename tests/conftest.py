@@ -4,8 +4,9 @@ pytest配置文件
 定义测试fixtures和配置
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from jorek_postproc import BoundaryQuantitiesData, PlottingConfig
 
 

@@ -2,8 +2,10 @@
 Test diagnostics module
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from jorek_postproc.diagnostics import check_environment, print_environment, validate_installation
 
 

@@ -4,8 +4,8 @@
 提供包的诊断、健康检查和验证功能。
 """
 
-import sys
 import platform
+import sys
 from typing import Dict, List, Tuple
 
 from . import __version__
@@ -168,12 +168,9 @@ def run_diagnostics(verbose: bool = False) -> bool:
     # 功能测试
     print("\n[3/3] 测试基本功能...")
     try:
-        from jorek_postproc import (
-            BoundaryQuantitiesData,
-            PlottingConfig,
-            get_device_geometry,
-        )
         import numpy as np
+
+        from jorek_postproc import BoundaryQuantitiesData, PlottingConfig, get_device_geometry
 
         # 测试数据模型
         data = BoundaryQuantitiesData(

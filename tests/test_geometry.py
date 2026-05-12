@@ -2,8 +2,9 @@
 Test geometry module
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from jorek_postproc.geometry import EXL50UDevice, ITERDevice, get_device_instance
 
 

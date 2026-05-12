@@ -3,8 +3,9 @@ IO module for reading boundary quantities files from JOREK output.
 """
 
 import os
+from typing import Dict, List, Tuple
+
 import numpy as np
-from typing import Tuple, Dict, List
 
 
 def read_boundary_file(

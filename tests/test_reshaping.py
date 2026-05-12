@@ -2,10 +2,11 @@
 测试数据重塑/重构模块
 """
 
-import pytest
 import numpy as np
-from jorek_postproc.reshaping import reshape_to_grid
+import pytest
+
 from jorek_postproc.data_models import BoundaryQuantitiesData
+from jorek_postproc.reshaping import reshape_to_grid
 
 
 class TestReshapeModule:

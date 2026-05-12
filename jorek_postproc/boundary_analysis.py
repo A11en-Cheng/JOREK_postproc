@@ -6,17 +6,14 @@ which includes R-Z boundary contours and unfolded Phi-Theta heat flux maps.
 """
 
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
+import matplotlib.pyplot as plt
+import numpy as np
+
+from . import PlottingConfig
 from . import config as cfg
-from . import (
-    read_boundary_file,
-    reshape_to_grid,
-    get_device_geometry,
-    PlottingConfig,
-)
+from . import get_device_geometry, read_boundary_file, reshape_to_grid
 
 # Note: plot_set is imported dynamically or we add it to __init__ later.
 # For now, let's import directly from plotting to be safe

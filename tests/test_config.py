@@ -2,8 +2,10 @@
 测试配置模块
 """
 
-import pytest
 import argparse
+
+import pytest
+
 from jorek_postproc.config import ProcessingConfig, create_parser
 
 

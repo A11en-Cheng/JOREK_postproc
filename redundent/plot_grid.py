@@ -82,7 +82,7 @@ def plot_mesh_system(grid_file=None, boundary_files=[], title=None,output_name=N
 
     # 3. 绘制边界 (Boundaries)
     # 使用高对比度颜色强调边界
-    boundary_colors = ['#8e44ad', '#e67e22', '#e74c3c'] # 紫橙、红、
+    boundary_colors = [ '#e67e22', '#8e44ad', '#e74c3c'] # 橙、紫、红
     boundaries = ['Real PFCs','JOREK simulation boundary']
     for i, b_file in enumerate(boundary_files):
         b_data = load_boundary(b_file)
@@ -192,16 +192,16 @@ if __name__ == "__main__":
     
     # 2. 绘图
     # 将你的文件名填入这里
-    # plot_mesh_system(
-    #     grid_file="/home/ac_desktop/EHL-2/wallgrid_const/grid_xpoint.dat", 
-    #     boundary_files=["/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],
-    #     title="X-point Grid"
-    # )
     plot_mesh_system(
-        grid_file="/home/ac_desktop/EHL-2/wallgrid_const/grid_initial.dat", 
-        boundary_files=["/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],
-        title="Initial Grid"
+        grid_file="/home/ac_desktop/EHL-2/wallgrid_const/grid_xpoint.dat", 
+        # boundary_files=["/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],
+        title="X-point Grid"
     )
+    # plot_mesh_system(
+    #     grid_file="/home/ac_desktop/EHL-2/wallgrid_const/grid_initial.dat", 
+    #     boundary_files=["/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],
+    #     title="Initial Grid"
+    # )
     # plot_mesh_system(
     #     grid_file=None, 
     #     boundary_files=["/home/ac_desktop/EHL-2/processedwallcontour", "/home/ac_desktop/EHL-2/wallgrid_const/wall_profile"],

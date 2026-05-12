@@ -92,7 +92,7 @@ def plot_with_dual_axis(file_pattern, file_extension='dat'):
             print(f"读取文件 {file_name} 时出错: {e}")
 
     # 6. 设置通用属性
-    ax1.set_xlabel("$Psi_{norm}$", fontsize=12)
+    ax1.set_xlabel(fr"${Psi_{norm}}$", fontsize=12)
     ax1.set_ylabel("Data (Left Axis)", fontsize=12)
     ax1.set_title("Initial Conditions", fontsize=16, pad=20)
 

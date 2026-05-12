@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("Agg")
 """
 pytest配置文件
 
